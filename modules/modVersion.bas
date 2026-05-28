@@ -6,8 +6,8 @@ Option Explicit
 ' ============================================
 
 Public Const CURRENT_VERSION As String = "1.0"
-Public Const UPDATE_CHECK_URL As String = "https://raw.githubusercontent.com/YOURUSERNAME/YOURREPO/main/version.txt"
-Public Const UPDATE_DOWNLOAD_URL As String = "https://raw.githubusercontent.com/YOURUSERNAME/YOURREPO/main/modules/"
+Public Const UPDATE_CHECK_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/version.txt"
+Public Const UPDATE_DOWNLOAD_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/modules/"
 
 ' Check for updates on workbook open
 Public Sub CheckForUpdatesOnOpen()
@@ -25,13 +25,14 @@ Public Sub CheckForUpdatesOnOpen()
         Exit Sub
     End If
     
-    latestVersion = Trim$(checkResult)
+    latestVersion = Replace(Replace(Trim$(checkResult), vbCr, ""), vbLf, "")
     
     If IsNewerVersion(latestVersion, CURRENT_VERSION) Then
         userChoice = MsgBox("A new version (" & latestVersion & ") is available!" & vbCrLf & vbCrLf & _
                            "Current version: " & CURRENT_VERSION & vbCrLf & vbCrLf & _
                            "Would you like to update now?" & vbCrLf & vbCrLf & _
-                           "Your data will be preserved.", vbYesNo + vbInformation, "Update Available")
+                           "Your data will be preserved." & vbCrLf & vbCrLf & _
+                           "A backup will be automatically created before updating.", vbYesNo + vbInformation, "Update Available")
         
         If userChoice = vbYes Then
             PerformUpdate latestVersion
@@ -117,18 +118,50 @@ Private Sub PerformUpdate(ByVal newVersion As String)
     Dim tempFolder As String
     Dim moduleCode As String
     
-    ' List of modules to update (add your module names here)
+    ' List of modules to update (must match filenames on GitHub)
+    ' modVersion is excluded - it cannot replace itself while running
     modulesToUpdate = Array( _
         "modAIExport.bas", _
+        "modBackup.bas", _
+        "modConstants.bas", _
+        "modControlFactory.bas", _
+        "modDOCX.bas", _
+        "modData.bas", _
+        "modDynamicFormBuilder.bas", _
+        "modFieldDefinitions.bas", _
         "modInventory.bas", _
+        "modLayoutConstants.bas", _
+        "modLogging.bas", _
+        "modLookups.bas", _
         "modPhotos.bas", _
+        "modSecurity.bas", _
+        "modShipping.bas", _
+        "modStartup.bas", _
         "modUtilities.bas", _
-        "modVersion.bas" _
+        "modValidation.bas" _
     )
     
     ' Create temp folder for downloads
     tempFolder = Environ$("TEMP") & "\MercariWorkbookUpdate\"
     CreateFolderIfMissing tempFolder
+    
+    ' Create backup first
+    Dim backupPath As String
+    backupPath = CreatePreUpdateBackup()
+    
+    If backupPath <> "" Then
+        If MsgBox("Pre-update backup created at:" & vbCrLf & vbCrLf & backupPath & vbCrLf & vbCrLf & _
+                  "If anything goes wrong, you can restore from this backup." & vbCrLf & vbCrLf & _
+                  "Continue with update?", vbYesNo + vbInformation, "Backup Created") = vbNo Then
+            Application.StatusBar = False
+            Exit Sub
+        End If
+    Else
+        If MsgBox("Could not create automatic backup. Continue anyway?", vbYesNo + vbExclamation, "No Backup") = vbNo Then
+            Application.StatusBar = False
+            Exit Sub
+        End If
+    End If
     
     ' Show progress
     Application.StatusBar = "Downloading update..."
@@ -153,12 +186,9 @@ Private Sub PerformUpdate(ByVal newVersion As String)
     Application.StatusBar = False
     
     ' Confirm before installing
-    If MsgBox("All files downloaded successfully!" & vbCrLf & vbCrLf & _
-              "The workbook will now close and reopen with the update." & vbCrLf & _
-              "Your data will be preserved." & vbCrLf & vbCrLf & _
-              "Save any unsaved work now. Continue?", vbYesNo + vbQuestion, "Ready to Install") = vbNo Then
-        Exit Sub
-    End If
+    MsgBox "All files downloaded successfully!" & vbCrLf & vbCrLf & _
+           "The workbook will now close and reopen with the update." & vbCrLf & _
+           "Your data will be preserved.", vbOKOnly + vbInformation, "Ready to Install"
     
     ' Perform installation
     InstallUpdate tempFolder, newVersion
@@ -225,23 +255,31 @@ Private Sub InstallUpdate(ByVal tempFolder As String, ByVal newVersion As String
     Set fso = CreateObject("Scripting.FileSystemObject")
     Set folder = fso.GetFolder(tempFolder)
     
-    ' Remove old modules (except protected ones)
-    For Each vbComp In vbProj.VBComponents
-        If vbComp.Type = 1 Then ' 1 = Standard Module
-            moduleName = vbComp.Name
-            ' Don't remove essential modules until we have replacement
-            If moduleName <> "modVersion" And moduleName <> "ThisWorkbook" Then
-                vbProj.VBComponents.Remove vbComp
-            End If
-        End If
-    Next vbComp
-    
-    ' Import new modules
+    ' Import new modules (remove old one first, then import replacement)
     For Each file In folder.Files
         If LCase$(fso.GetExtensionName(file.Name)) = "bas" Then
             filePath = file.Path
+            moduleName = fso.GetBaseName(file.Name)
+            
+            ' Skip modVersion - never replace yourself while running
+            If LCase$(moduleName) = "modversion" Then GoTo NextFile
+            
+            ' Remove existing module if present
+            On Error Resume Next
+            Set vbComp = vbProj.VBComponents(moduleName)
+            On Error GoTo ErrorHandler
+            
+            If Not vbComp Is Nothing Then
+                vbProj.VBComponents.Remove vbComp
+                DoEvents
+                Application.Wait Now + TimeValue("00:00:01")
+            End If
+            Set vbComp = Nothing
+            
+            ' Import the new module
             vbProj.VBComponents.Import filePath
         End If
+NextFile:
     Next file
     
     ' Update version number in Settings
@@ -253,7 +291,7 @@ Private Sub InstallUpdate(ByVal tempFolder As String, ByVal newVersion As String
     MsgBox "Update complete! Workbook will now reopen.", vbInformation, "Success"
     
     ' Reopen workbook
-    Application.OnTime Now + TimeValue("00:00:02"), "ReopenWorkbook"
+    Application.OnTime Now + TimeValue("00:00:02"), "DoReopenWorkbook"
     
     Exit Sub
     
@@ -263,7 +301,7 @@ ErrorHandler:
 End Sub
 
 ' Reopen workbook after update
-Public Sub ReopenWorkbook()
+Public Sub DoReopenWorkbook()
     Dim wbPath As String
     wbPath = ThisWorkbook.FullName
     
@@ -327,3 +365,37 @@ Public Sub UpdateSetting(ByVal settingName As String, ByVal settingValue As Stri
     End If
     
 End Sub
+
+' ============================================
+' BACKUP BEFORE UPDATE
+' ============================================
+
+Private Function CreatePreUpdateBackup() As String
+    On Error GoTo ErrorHandler
+    
+    Dim backupFolder As String
+    Dim backupPath As String
+    Dim timestamp As String
+    Dim fso As Object
+    
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    ' Create backup folder if needed
+    backupFolder = ThisWorkbook.Path & "\Backups\Pre-Update"
+    If Not fso.FolderExists(backupFolder) Then
+        fso.CreateFolder backupFolder
+    End If
+    
+    ' Create timestamped backup filename
+    timestamp = Format(Now, "yyyy-mm-dd_hh-nn-ss")
+    backupPath = backupFolder & "\" & Left$(ThisWorkbook.Name, InStrRev(ThisWorkbook.Name, ".") - 1) & "_BACKUP_" & timestamp & ".xlsm"
+    
+    ' Save backup
+    ThisWorkbook.SaveCopyAs backupPath
+    
+    CreatePreUpdateBackup = backupPath
+    Exit Function
+    
+ErrorHandler:
+    CreatePreUpdateBackup = ""
+End Function
