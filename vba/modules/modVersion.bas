@@ -326,7 +326,14 @@ ErrorHandler:
     On Error Resume Next
     If Not sourceWb Is Nothing Then sourceWb.Close SaveChanges:=False
     On Error GoTo 0
-    MsgBox "Error transferring data: " & Err.Number & " - " & Err.Description, vbCritical, "Transfer Error"
+    
+    ' Debug info
+    MsgBox "Error transferring data: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+           "Debug info:" & vbCrLf & _
+           "oldFolder: " & oldFolder & vbCrLf & _
+           "oldFileName: " & oldFileName & vbCrLf & _
+           "newFilePath: " & newFilePath & vbCrLf & _
+           "sourceWorkbookPath: " & sourceWorkbookPath, vbCritical, "Transfer Error"
 End Sub
 
 ' Transfer data rows from source workbook sheet to this workbook
