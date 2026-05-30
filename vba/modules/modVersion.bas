@@ -274,11 +274,18 @@ Public Sub TransferMyData()
     TransferSheetData sourceWb, "SETTINGS"
     MsgBox "DEBUG: SETTINGS transferred", vbInformation, "DEBUG"
     
+    ' PAUSE POINT: Click OK then wait 2 seconds before next popup
+    MsgBox "DEBUG: Pause point - click OK and observe if Excel stays open", vbInformation, "DEBUG"
+    Application.Wait Now + TimeValue("00:00:02")
+    
     ' Close the source workbook
     MsgBox "DEBUG: About to close source workbook", vbInformation, "DEBUG"
     ' Restore ScreenUpdating before closing to avoid Excel getting stuck
+    MsgBox "DEBUG: About to set ScreenUpdating = True", vbInformation, "DEBUG"
     Application.ScreenUpdating = True
+    MsgBox "DEBUG: ScreenUpdating set, about to DoEvents", vbInformation, "DEBUG"
     DoEvents
+    MsgBox "DEBUG: DoEvents completed, about to close workbook", vbInformation, "DEBUG"
     On Error Resume Next
     sourceWb.Close SaveChanges:=False
     If Err.Number <> 0 Then
@@ -287,7 +294,7 @@ Public Sub TransferMyData()
     End If
     On Error GoTo ErrorHandler
     Set sourceWb = Nothing
-    MsgBox "DEBUG: Source workbook closed", vbInformation, "DEBUG"
+    MsgBox "DEBUG: Source workbook object set to nothing", vbInformation, "DEBUG"
     
     ' Clean up temp file
     If Dir(tempPathFile) <> "" Then Kill tempPathFile
