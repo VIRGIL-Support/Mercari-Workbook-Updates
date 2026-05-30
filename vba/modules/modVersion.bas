@@ -227,13 +227,16 @@ Public Sub TransferMyData()
         Exit Sub
     Else
         ' Read path from temp file
+        MsgBox "DEBUG: Temp file found, reading path", vbInformation, "DEBUG"
         f = FreeFile
         Open tempPathFile For Input As #f
         Line Input #f, sourceWorkbookPath
         Close #f
+        MsgBox "DEBUG: Path from temp file: " & sourceWorkbookPath, vbInformation, "DEBUG"
         
         ' Verify file exists - if not, clean up temp file and exit
         If Dir(sourceWorkbookPath) = "" Then
+            MsgBox "DEBUG: Source workbook not found at path, cleaning up", vbInformation, "DEBUG"
             ' Old workbook is gone, clean up and continue normally
             Kill tempPathFile
             Exit Sub
@@ -243,31 +246,43 @@ Public Sub TransferMyData()
     ' Remember old workbook location and name
     oldFolder = fso.GetParentFolderName(sourceWorkbookPath)
     oldFileName = fso.GetFileName(sourceWorkbookPath)
+    MsgBox "DEBUG: oldFolder = " & oldFolder & vbCrLf & "oldFileName = " & oldFileName, vbInformation, "DEBUG"
     
     Application.StatusBar = "Opening source workbook..."
     Application.ScreenUpdating = False
     
     ' Open the old workbook (read-only)
+    MsgBox "DEBUG: About to open source workbook", vbInformation, "DEBUG"
     Set sourceWb = Workbooks.Open(sourceWorkbookPath, ReadOnly:=True)
+    MsgBox "DEBUG: Source workbook opened successfully", vbInformation, "DEBUG"
     
     ' Transfer INVENTORY data
+    MsgBox "DEBUG: About to transfer INVENTORY", vbInformation, "DEBUG"
     Application.StatusBar = "Transferring INVENTORY data..."
     TransferSheetData sourceWb, WS_INVENTORY
+    MsgBox "DEBUG: INVENTORY transferred", vbInformation, "DEBUG"
     
     ' Transfer SOLD ITEMS data
+    MsgBox "DEBUG: About to transfer SOLD ITEMS", vbInformation, "DEBUG"
     Application.StatusBar = "Transferring SOLD ITEMS data..."
     TransferSheetData sourceWb, "SOLD ITEMS"
+    MsgBox "DEBUG: SOLD ITEMS transferred", vbInformation, "DEBUG"
     
     ' Transfer SETTINGS data
+    MsgBox "DEBUG: About to transfer SETTINGS", vbInformation, "DEBUG"
     Application.StatusBar = "Transferring SETTINGS..."
     TransferSheetData sourceWb, "SETTINGS"
+    MsgBox "DEBUG: SETTINGS transferred", vbInformation, "DEBUG"
     
     ' Close the source workbook
+    MsgBox "DEBUG: About to close source workbook", vbInformation, "DEBUG"
     sourceWb.Close SaveChanges:=False
     Set sourceWb = Nothing
+    MsgBox "DEBUG: Source workbook closed", vbInformation, "DEBUG"
     
     ' Clean up temp file
     If Dir(tempPathFile) <> "" Then Kill tempPathFile
+    MsgBox "DEBUG: Temp file cleaned up", vbInformation, "DEBUG"
     
     ' Create Archive folder in the old workbook's location
     Application.StatusBar = "Archiving old workbook..."
@@ -280,10 +295,13 @@ Public Sub TransferMyData()
     archivePath = archiveFolder & "\" & fso.GetBaseName(oldFileName) & "_ARCHIVED_" & timestamp & ".xlsm"
     
     ' Move old workbook to archive
+    MsgBox "DEBUG: About to move old workbook to archive" & vbCrLf & "From: " & sourceWorkbookPath & vbCrLf & "To: " & archivePath, vbInformation, "DEBUG"
     fso.MoveFile sourceWorkbookPath, archivePath
+    MsgBox "DEBUG: Old workbook archived", vbInformation, "DEBUG"
     
     ' Save and move this (new) workbook to the old workbook's location
     newFilePath = oldFolder & "\" & oldFileName
+    MsgBox "DEBUG: About to SaveAs to: " & newFilePath, vbInformation, "DEBUG"
     
     ' If old filename is different from new filename, use old filename
     ' so user keeps their custom name
