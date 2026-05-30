@@ -215,11 +215,15 @@ Public Sub TransferMyData()
     
     Set fso = CreateObject("Scripting.FileSystemObject")
     
+    ' DEBUG: Confirm TransferMyData is running
+    MsgBox "TransferMyData starting..." & vbCrLf & "Temp file: " & Environ$("TEMP") & "\MercariUpdateSource.txt", vbInformation, "DEBUG"
+    
     ' Try to read the old workbook path from temp file
     tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
     
     If Dir(tempPathFile) = "" Then
         ' No temp file - no transfer needed, just exit silently
+        MsgBox "No temp file found, exiting", vbInformation, "DEBUG"
         Exit Sub
     Else
         ' Read path from temp file
@@ -307,6 +311,9 @@ Public Sub TransferMyData()
     ThisWorkbook.Worksheets(WS_INVENTORY).Activate
     ThisWorkbook.Worksheets(WS_INVENTORY).Range("A1").Select
     On Error GoTo 0
+    
+    ' DEBUG: About to show success message
+    MsgBox "DEBUG: Reaching success message", vbInformation, "DEBUG"
     
     MsgBox "Welcome to your newly updated workbook!" & vbCrLf & vbCrLf & _
            "All of your data has been transferred successfully and everything is right where you left it." & vbCrLf & vbCrLf & _
