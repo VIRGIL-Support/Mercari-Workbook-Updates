@@ -276,7 +276,16 @@ Public Sub TransferMyData()
     
     ' Close the source workbook
     MsgBox "DEBUG: About to close source workbook", vbInformation, "DEBUG"
+    ' Restore ScreenUpdating before closing to avoid Excel getting stuck
+    Application.ScreenUpdating = True
+    DoEvents
+    On Error Resume Next
     sourceWb.Close SaveChanges:=False
+    If Err.Number <> 0 Then
+        MsgBox "DEBUG: Error closing source workbook: " & Err.Number & " - " & Err.Description, vbExclamation, "DEBUG ERROR"
+        Err.Clear
+    End If
+    On Error GoTo ErrorHandler
     Set sourceWb = Nothing
     MsgBox "DEBUG: Source workbook closed", vbInformation, "DEBUG"
     
@@ -345,9 +354,14 @@ Public Sub TransferMyData()
     Exit Sub
     
 ErrorHandler:
+    ' CANARY: This should ALWAYS show if we hit the error handler
+    MsgBox "CANARY: ErrorHandler triggered! Error " & Err.Number & " - " & Err.Description, vbExclamation, "DEBUG CANARY"
+    
     Application.ScreenUpdating = True
     Application.StatusBar = False
     Application.DisplayAlerts = True
+    DoEvents
+    
     On Error Resume Next
     If Not sourceWb Is Nothing Then sourceWb.Close SaveChanges:=False
     On Error GoTo 0
