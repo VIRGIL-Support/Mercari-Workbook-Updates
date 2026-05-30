@@ -178,16 +178,14 @@ Private Sub DownloadUpdate(ByVal newVersion As String)
     Print #f, oldWorkbookPath
     Close #f
     
-    ' Save current workbook before closing
-    Application.DisplayAlerts = False
+    ' Save current workbook
     ThisWorkbook.Save
     
-    ' Open the new workbook first (its Workbook_Open will fire after this sub ends)
+    ' Open the new workbook
     Workbooks.Open downloadPath
     
-    ' Now close the old workbook
+    ' Close the old workbook
     ThisWorkbook.Close SaveChanges:=False
-    Application.DisplayAlerts = True
     
     Exit Sub
     
@@ -214,7 +212,6 @@ Public Sub TransferMyData()
     Dim archivePath As String
     Dim newFilePath As String
     Dim newFileName As String
-    Dim retryCount As Integer
     
     Set fso = CreateObject("Scripting.FileSystemObject")
     
@@ -222,11 +219,8 @@ Public Sub TransferMyData()
     tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
     
     If Dir(tempPathFile) = "" Then
-        ' No temp file - ask user to browse
-        sourceWorkbookPath = Application.GetOpenFilename( _
-            FileFilter:="Excel Files (*.xlsm),*.xlsm", _
-            Title:="Select your previous workbook to transfer data from")
-        If sourceWorkbookPath = "False" Then Exit Sub
+        ' No temp file - no transfer needed, just exit silently
+        Exit Sub
     Else
         ' Read path from temp file
         f = FreeFile
@@ -234,19 +228,11 @@ Public Sub TransferMyData()
         Line Input #f, sourceWorkbookPath
         Close #f
         
-        ' Verify file exists (wait up to 5 seconds for file lock to release)
-        retryCount = 0
-        Do While Dir(sourceWorkbookPath) = "" And retryCount < 5
-            Application.Wait Now + TimeValue("00:00:01")
-            DoEvents
-            retryCount = retryCount + 1
-        Loop
-        
+        ' Verify file exists - if not, clean up temp file and exit
         If Dir(sourceWorkbookPath) = "" Then
-            sourceWorkbookPath = Application.GetOpenFilename( _
-                FileFilter:="Excel Files (*.xlsm),*.xlsm", _
-                Title:="Select your previous workbook to transfer data from")
-            If sourceWorkbookPath = "False" Then Exit Sub
+            ' Old workbook is gone, clean up and continue normally
+            Kill tempPathFile
+            Exit Sub
         End If
     End If
     
@@ -257,35 +243,24 @@ Public Sub TransferMyData()
     Application.StatusBar = "Opening source workbook..."
     Application.ScreenUpdating = False
     
-    ' Wait a moment for file locks to release
-    Application.Wait Now + TimeValue("00:00:02")
-    DoEvents
-    
     ' Open the old workbook (read-only)
-    Set sourceWb = Workbooks.Open(sourceWorkbookPath, ReadOnly:=True, UpdateLinks:=0)
+    Set sourceWb = Workbooks.Open(sourceWorkbookPath, ReadOnly:=True)
     
     ' Transfer INVENTORY data
     Application.StatusBar = "Transferring INVENTORY data..."
     TransferSheetData sourceWb, WS_INVENTORY
-    DoEvents
     
     ' Transfer SOLD ITEMS data
     Application.StatusBar = "Transferring SOLD ITEMS data..."
     TransferSheetData sourceWb, "SOLD ITEMS"
-    DoEvents
     
     ' Transfer SETTINGS data
     Application.StatusBar = "Transferring SETTINGS..."
     TransferSheetData sourceWb, "SETTINGS"
-    DoEvents
     
     ' Close the source workbook
     sourceWb.Close SaveChanges:=False
     Set sourceWb = Nothing
-    
-    ' Wait for file to fully release
-    Application.Wait Now + TimeValue("00:00:02")
-    DoEvents
     
     ' Clean up temp file
     If Dir(tempPathFile) <> "" Then Kill tempPathFile
@@ -300,24 +275,16 @@ Public Sub TransferMyData()
     timestamp = Format(Now, "yyyy-mm-dd_hh-nn-ss")
     archivePath = archiveFolder & "\" & fso.GetBaseName(oldFileName) & "_ARCHIVED_" & timestamp & ".xlsm"
     
-    ' Move old workbook to archive (retry if file is still locked)
-    retryCount = 0
-    On Error Resume Next
-    Do
-        Err.Clear
-        fso.MoveFile sourceWorkbookPath, archivePath
-        If Err.Number = 0 Then Exit Do
-        retryCount = retryCount + 1
-        Application.Wait Now + TimeValue("00:00:02")
-        DoEvents
-    Loop While retryCount < 5
-    On Error GoTo ErrorHandler
+    ' Move old workbook to archive
+    fso.MoveFile sourceWorkbookPath, archivePath
     
     ' Save and move this (new) workbook to the old workbook's location
     newFilePath = oldFolder & "\" & oldFileName
     
+    ' If old filename is different from new filename, use old filename
+    ' so user keeps their custom name
     Application.DisplayAlerts = False
-    ThisWorkbook.SaveAs Filename:=newFilePath, FileFormat:=xlOpenXMLWorkbookMacroEnabled
+    ThisWorkbook.SaveAs fileName:=newFilePath, FileFormat:=xlOpenXMLWorkbookMacroEnabled
     Application.DisplayAlerts = True
     
     newFileName = fso.GetFileName(ThisWorkbook.FullName)
@@ -359,21 +326,7 @@ ErrorHandler:
     On Error Resume Next
     If Not sourceWb Is Nothing Then sourceWb.Close SaveChanges:=False
     On Error GoTo 0
-    
-    ' Log the error to a temp file for debugging
-    Dim logFile As Integer
-    logFile = FreeFile
-    Open Environ$("TEMP") & "\MercariUpdateLog.txt" For Output As #logFile
-    Print #logFile, "Error at: " & Now
-    Print #logFile, "Error #: " & Err.Number
-    Print #logFile, "Description: " & Err.Description
-    Print #logFile, "Source path: " & sourceWorkbookPath
-    Print #logFile, "Old folder: " & oldFolder
-    Print #logFile, "Old filename: " & oldFileName
-    Close #logFile
-    
-    MsgBox "Error transferring data: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
-           "A log file has been saved to:" & vbCrLf & Environ$("TEMP") & "\MercariUpdateLog.txt", vbCritical, "Transfer Error"
+    MsgBox "Error transferring data: " & Err.Number & " - " & Err.Description, vbCritical, "Transfer Error"
 End Sub
 
 ' Transfer data rows from source workbook sheet to this workbook
@@ -429,6 +382,11 @@ Private Function CheckForPendingTransfer() As Boolean
     Dim tempPathFile As String
     tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
     
+    ' Remove any leftover Transfer My Data button from previous versions
+    On Error Resume Next
+    ThisWorkbook.Worksheets(WS_INVENTORY).Shapes("BTN_TRANSFER_DATA").Delete
+    On Error GoTo 0
+    
     ' If the temp file exists, a transfer is pending
     If Dir(tempPathFile) = "" Then
         CheckForPendingTransfer = False
@@ -436,11 +394,6 @@ Private Function CheckForPendingTransfer() As Boolean
     End If
     
     CheckForPendingTransfer = True
-    
-    ' Remove any leftover Transfer My Data button from previous versions
-    On Error Resume Next
-    ThisWorkbook.Worksheets(WS_INVENTORY).Shapes("BTN_TRANSFER_DATA").Delete
-    On Error GoTo 0
     
     ' Auto-run the transfer silently (no popups)
     TransferMyData
