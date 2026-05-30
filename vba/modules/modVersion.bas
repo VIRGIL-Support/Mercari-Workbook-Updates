@@ -205,6 +205,7 @@ Public Sub TransferMyData()
     Dim tempPathFile As String
     Dim sourceWb As Workbook
     Dim f As Integer
+    Dim logFile As Integer
     Dim fso As Object
     Dim oldFolder As String
     Dim oldFileName As String
@@ -286,6 +287,19 @@ Public Sub TransferMyData()
     MsgBox "DEBUG: ScreenUpdating set, about to DoEvents", vbInformation, "DEBUG"
     DoEvents
     MsgBox "DEBUG: DoEvents completed, about to close workbook", vbInformation, "DEBUG"
+    
+    ' LOG to file before attempting close
+    logFile = FreeFile
+    Open Environ$("TEMP") & "\MercariUpdateLog.txt" For Append As #logFile
+    Print #logFile, "=== " & Now & " ==="
+    Print #logFile, "About to close sourceWb"
+    Print #logFile, "sourceWb.Name: " & sourceWb.Name
+    Print #logFile, "sourceWb.FullName: " & sourceWb.FullName
+    Print #logFile, "ThisWorkbook.Name: " & ThisWorkbook.Name
+    Print #logFile, "ThisWorkbook.FullName: " & ThisWorkbook.FullName
+    Close #logFile
+    
+    MsgBox "DEBUG: About to execute sourceWb.Close - sourceWb.Name = " & sourceWb.Name, vbInformation, "DEBUG"
     On Error Resume Next
     sourceWb.Close SaveChanges:=False
     If Err.Number <> 0 Then
@@ -293,6 +307,15 @@ Public Sub TransferMyData()
         Err.Clear
     End If
     On Error GoTo ErrorHandler
+    
+    ' LOG after close attempt
+    logFile = FreeFile
+    Open Environ$("TEMP") & "\MercariUpdateLog.txt" For Append As #logFile
+    Print #logFile, "=== " & Now & " ==="
+    Print #logFile, "sourceWb.Close completed (or attempted)"
+    Print #logFile, "Err.Number after close: " & Err.Number
+    Close #logFile
+    
     Set sourceWb = Nothing
     MsgBox "DEBUG: Source workbook object set to nothing", vbInformation, "DEBUG"
     
