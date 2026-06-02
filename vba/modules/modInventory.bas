@@ -181,6 +181,9 @@ Public Sub PrepareNextInventoryRow(ByVal rowNum As Long)
     If Trim(ws.Cells(rowNum, COL_ITEM_NUMBER).Value) = "" Then
         ws.Cells(rowNum, COL_ITEM_NUMBER).Value = GetNextItemNumber()
     End If
+    
+    ' Refresh alternating row colors after adding new row
+    RefreshRowColorsAfterChange
 
 End Sub
 
@@ -537,6 +540,9 @@ Private Sub RetireInventoryRow(ByVal rowNum As Long)
     Next colIdx
     ws.Cells(rowNum, COL_STATUS).Font.Color = RGB(128, 128, 128)
     ws.Rows(rowNum).Hidden = True
+    
+    ' Refresh alternating row colors after hiding row
+    RefreshRowColorsAfterChange
 
 End Sub
 
@@ -936,6 +942,9 @@ Public Function ProcessSoldItemsOnClose() As Long
         wsSold.Columns("K:N").Hidden = True
         EnsureOnePendingInventoryRow
     End If
+    
+    ' Refresh alternating row colors after processing sold items
+    RefreshRowColorsAfterChange
 
     Exit Function
 
@@ -1608,4 +1617,65 @@ Public Sub OpenItemEditor(ByVal inventoryRow As Long)
 
     End With
 
+End Sub
+
+' =====================================================
+' ALTERNATING ROW COLORS FOR INVENTORY
+' =====================================================
+
+Public Sub ApplyAlternatingRowColors()
+    ' Applies alternating row colors to visible rows in INVENTORY sheet
+    ' Last row is always darker blue (#C5C9FA), alternates with lighter blue (#ECEEFF)
+    
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim row As Long
+    Dim visibleRowCount As Long
+    Dim darkerBlue As Long
+    Dim lighterBlue As Long
+    
+    darkerBlue = RGB(197, 201, 250)   ' #C5C9FA - darker blue (last row)
+    lighterBlue = RGB(236, 238, 255)  ' #ECEEFF - lighter blue (alternating)
+    
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(WS_INVENTORY)
+    On Error GoTo 0
+    
+    If ws Is Nothing Then Exit Sub
+    
+    ' Find last visible row with data in column A (ITEM #)
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    ' If no data rows (only header), exit
+    If lastRow <= 1 Then Exit Sub
+    
+    ' Clear existing colors from data rows (A to K)
+    ws.Range("A2:K" & lastRow).Interior.ColorIndex = xlNone
+    
+    ' Count visible rows from bottom and apply alternating pattern
+    ' Last row = darker, 2nd from bottom = lighter, 3rd = darker, etc.
+    visibleRowCount = 0
+    
+    For row = lastRow To 2 Step -1
+        ' Check if row is visible (not hidden)
+        If ws.Rows(row).Hidden = False Then
+            visibleRowCount = visibleRowCount + 1
+            
+            ' Odd rows from bottom (1, 3, 5...) get darker blue
+            ' Even rows from bottom (2, 4, 6...) get lighter blue
+            If visibleRowCount Mod 2 = 1 Then
+                ws.Range("A" & row & ":K" & row).Interior.Color = darkerBlue
+            Else
+                ws.Range("A" & row & ":K" & row).Interior.Color = lighterBlue
+            End If
+        End If
+    Next row
+    
+End Sub
+
+Public Sub RefreshRowColorsAfterChange()
+    ' Call this after adding, deleting, or hiding rows
+    Application.ScreenUpdating = False
+    ApplyAlternatingRowColors
+    Application.ScreenUpdating = True
 End Sub
