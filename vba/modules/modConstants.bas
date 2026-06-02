@@ -7,7 +7,7 @@ Option Explicit
 
 Public Const APP_NAME As String = "Mercari System"
 
-Public Const APP_VERSION As String = "0.01"
+Public Const APP_VERSION As String = "1.0.0"
 
 ' =====================================================
 ' WORKSHEET NAMES
