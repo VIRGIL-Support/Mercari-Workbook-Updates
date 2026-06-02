@@ -49,6 +49,37 @@ Private Sub btnSaveClose_Click()
 
 End Sub
 
+' =====================================================
+' MANAGE DROPDOWN LISTS
+' =====================================================
+
+Private Sub btnManageLists_Click()
+
+    Dim wasDirty As Boolean
+    
+    wasDirty = mIsDirty
+    
+    ' Save current data before opening manager
+    SaveAllFieldValues Me
+    
+    ' Hide form temporarily while managing lists
+    Me.Hide
+    
+    ' Open the lookup manager
+    ManageLookupValues
+    
+    ' Reload form data to refresh dropdowns
+    LoadFormData
+    
+    ' Show form again
+    Me.Show
+    
+    If wasDirty Then MarkDirty
+    
+    lblStatus.caption = "Dropdown lists updated " & Format(Now, "h:mm:ss AM/PM")
+
+End Sub
+
 
 ' =====================================================
 ' INITIALIZE
