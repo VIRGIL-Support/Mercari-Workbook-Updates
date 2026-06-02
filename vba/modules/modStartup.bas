@@ -13,17 +13,14 @@ Public Sub InitializeWorkbook()
     Dim firstRunValue As String
     Dim wsSettings As Worksheet
     Dim wasSettingsProtected As Boolean
-
-    ' If this is a pending update transfer, skip folder creation
-    ' (folders will be handled after transfer completes)
+    
+    ' CHECK IF THIS IS AN UPDATE TRANSFER IN PROGRESS
+    ' If temp file exists, new workbook was just opened for data transfer
+    ' Skip ALL first-run logic (EULA, folders, etc.) - transfer will handle everything
     If Dir(Environ$("TEMP") & "\MercariUpdateSource.txt") <> "" Then
-        ' Still show startup message if not first run
-        firstRunValue = GetSettingValue("FIRST_RUN_COMPLETE")
-        If UCase(firstRunValue) = "YES" Then
-            ' Don't show message during update, just exit
-            Exit Sub
-        End If
-        ' If first run, continue with setup (shouldn't happen during update)
+        ' This is an update scenario - exit immediately
+        ' TransferMyData will run after this and handle the setup
+        Exit Sub
     End If
 
     rootFolder = ThisWorkbook.Path
