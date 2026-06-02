@@ -5,7 +5,7 @@ Option Explicit
 ' VERSION MANAGEMENT MODULE
 ' ============================================
 
-Public Const CURRENT_VERSION As String = "1.0"
+Public Const CURRENT_VERSION As String = "1.1"
 Public Const UPDATE_CHECK_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/version.txt"
 Public Const UPDATE_DOWNLOAD_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/Mercari_Workbook_Latest.xlsm"
 
@@ -219,7 +219,9 @@ Private Sub DownloadUpdate(ByVal newVersion As String)
     
 ErrorHandler:
     Application.StatusBar = False
-    MsgBox "Error during update: " & Err.Number & " - " & Err.Description, vbCritical, "Update Error"
+    MsgBox "UPDATE DEBUG - Error " & Err.Number & ": " & Err.Description & vbCrLf & _
+           "Line that failed will be shown if you click Debug", vbCritical, "Update Error"
+    ' Resume Next ' Uncomment for debugging to see where it fails
 End Sub
 
 ' ============================================
@@ -601,21 +603,30 @@ Private Function CreatePreUpdateBackup() As String
     On Error GoTo ErrorHandler
     
     Dim backupFolder As String
+    Dim preUpdateFolder As String
     Dim backupPath As String
     Dim timestamp As String
     Dim fso As Object
     
     Set fso = CreateObject("Scripting.FileSystemObject")
     
-    ' Create backup folder if needed
-    backupFolder = ThisWorkbook.Path & "\Backups\Pre-Update"
+    ' Create nested folders: Backups first, then Pre-Update subfolder
+    backupFolder = ThisWorkbook.Path & "\Backups"
+    preUpdateFolder = backupFolder & "\Pre-Update"
+    
+    ' Create Backups folder if needed
     If Not fso.FolderExists(backupFolder) Then
         fso.CreateFolder backupFolder
     End If
     
+    ' Create Pre-Update subfolder if needed
+    If Not fso.FolderExists(preUpdateFolder) Then
+        fso.CreateFolder preUpdateFolder
+    End If
+    
     ' Create timestamped backup filename
     timestamp = Format(Now, "yyyy-mm-dd_hh-nn-ss")
-    backupPath = backupFolder & "\" & Left$(ThisWorkbook.Name, InStrRev(ThisWorkbook.Name, ".") - 1) & "_BACKUP_" & timestamp & ".xlsm"
+    backupPath = preUpdateFolder & "\" & Left$(ThisWorkbook.Name, InStrRev(ThisWorkbook.Name, ".") - 1) & "_BACKUP_" & timestamp & ".xlsm"
     
     ' Save backup
     ThisWorkbook.SaveCopyAs backupPath
@@ -624,5 +635,6 @@ Private Function CreatePreUpdateBackup() As String
     Exit Function
     
 ErrorHandler:
+    MsgBox "Backup failed: " & Err.Number & " - " & Err.Description, vbExclamation, "Backup Error"
     CreatePreUpdateBackup = ""
 End Function
