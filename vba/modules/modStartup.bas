@@ -33,6 +33,22 @@ Public Sub InitializeWorkbook()
 
     firstRunValue = GetSettingValue("FIRST_RUN_COMPLETE")
     EnsureWorkbookFolders rootFolder
+    
+    ' Create default support documents if missing (EULA, Version History, Troubleshooting Guide)
+    On Error Resume Next
+    Call CreateDefaultSupportDocuments
+    On Error GoTo 0
+    
+    ' Create help folder structure (Quick Start, User Guide)
+    On Error Resume Next
+    Call CreateHelpStructure
+    On Error GoTo 0
+    
+    ' Update dynamic copyright year
+    On Error Resume Next
+    Call RefreshCopyright
+    On Error GoTo 0
+    
     ApplyColumnFormatting
 
     ' =====================================================
@@ -41,13 +57,23 @@ Public Sub InitializeWorkbook()
 
     If UCase(firstRunValue) <> "YES" Then
 
+        ' Display EULA and get user acceptance
+        If Not DisplayEULA() Then
+            ' User declined - close workbook without saving
+            MsgBox "You must accept the license agreement to use this software." & vbCrLf & vbCrLf & _
+                   "The workbook will now close.", vbExclamation, "License Required"
+            ThisWorkbook.Close SaveChanges:=False
+            Exit Sub
+        End If
+
         ' Set hidden watermark for copyright tracking
         Call SetHiddenWatermark
 
         ' MARK FIRST RUN COMPLETE
         Call SetSettingValue("FIRST_RUN_COMPLETE", "Yes")
 
-        MsgBox "Initial setup completed successfully.", vbInformation
+        MsgBox "Thank you for accepting the license agreement!" & vbCrLf & vbCrLf & _
+               "Initial setup completed successfully.", vbInformation
 
     Else
 
