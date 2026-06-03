@@ -284,6 +284,9 @@ Public Sub TransferMyData()
     Dim logFile As String
     logFile = Environ$("TEMP") & "\MercariUpdateLog.txt"
     
+    ' Declare logNum before using it
+    Dim logNum As Integer
+    
     ' IMMEDIATE TEST: Write to log BEFORE clearing to verify it works
     logNum = FreeFile
     Open logFile For Append As #logNum
@@ -316,7 +319,6 @@ Public Sub TransferMyData()
     Dim archivePath As String
     Dim finalPath As String
     Dim COPY_FOLDERS_TO_ARCHIVE As Boolean
-    Dim logNum As Integer
 
     COPY_FOLDERS_TO_ARCHIVE = True
 
