@@ -17,6 +17,10 @@ End Sub
 
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
 
+    ' Skip backup if an update transfer is in progress
+    ' (prevents errors when the update script closes the old workbook)
+    If Dir(Environ$("TEMP") & "\MercariUpdateSource.txt") <> "" Then Exit Sub
+    
     Call BackupWorkbookBeforeClose
 
 End Sub
