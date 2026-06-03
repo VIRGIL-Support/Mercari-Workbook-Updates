@@ -5,7 +5,7 @@ Option Explicit
 ' VERSION MANAGEMENT MODULE
 ' ============================================
 
-Public Const CURRENT_VERSION As String = "1.0"
+Public Const CURRENT_VERSION As String = "1.1"
 Public Const UPDATE_CHECK_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/version.txt"
 Public Const UPDATE_DOWNLOAD_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/Mercari_Workbook_Latest.xlsm"
 
@@ -284,13 +284,22 @@ Public Sub TransferMyData()
     Dim logFile As String
     logFile = Environ$("TEMP") & "\MercariUpdateLog.txt"
     
+    ' IMMEDIATE TEST: Write to log BEFORE clearing to verify it works
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "=== TEST: TransferMyData starting - can we write to log? ==="
+    Close #logNum
+    
+    MsgBox "DEBUG: Test log entry written. Check log file now.", vbInformation, "DEBUG: Log Test"
+    
     ' Clear old log
     On Error Resume Next
     Kill logFile
+    If Err.Number <> 0 Then
+        MsgBox "ERROR killing old log: " & Err.Number & " - " & Err.Description, vbCritical, "Log Kill Error"
+        Err.Clear
+    End If
     On Error GoTo 0
-    
-    ' Helper function to write to log
-    Dim logNum As Integer
     
     On Error GoTo ErrorHandler
 
@@ -399,16 +408,30 @@ Public Sub TransferMyData()
     MsgBox "DEBUG: All data transfers completed!" & vbCrLf & vbCrLf & _
            "About to close source workbook...", vbInformation, "DEBUG: Data Transfer Complete"
 
+    MsgBox "DEBUG: Step 1 - ScreenUpdating = True", vbInformation, "DEBUG: Step 1"
     Application.ScreenUpdating = True
+    
+    MsgBox "DEBUG: Step 2 - DoEvents", vbInformation, "DEBUG: Step 2"
     DoEvents
+    
+    MsgBox "DEBUG: Step 3 - About to set Saved = True", vbInformation, "DEBUG: Step 3"
 
+    ' Force close the source workbook - don't wait for dialogs
     On Error Resume Next
+    sourceWb.Saved = True  ' Mark as saved to prevent save prompt
     sourceWb.Close SaveChanges:=False
     If Err.Number <> 0 Then
-        MsgBox "ERROR closing source workbook: " & Err.Number & " - " & Err.Description, vbCritical, "Close Error"
+        MsgBox "WARNING: Error closing workbook: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+               "Attempting force close...", vbExclamation, "Close Warning"
         Err.Clear
+        ' Try again with Application.DisplayAlerts off
+        Application.DisplayAlerts = False
+        sourceWb.Close SaveChanges:=False
+        Application.DisplayAlerts = True
     End If
     On Error GoTo ErrorHandler
+    
+    MsgBox "DEBUG: sourceWb.Close executed", vbInformation, "DEBUG: Close Executed"
 
     Set sourceWb = Nothing
     DoEvents
