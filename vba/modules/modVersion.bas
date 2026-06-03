@@ -33,7 +33,10 @@ Public Sub CheckForUpdatesOnOpen()
         ' If file is old (> 2 min), it's stale - let ResetUpdateState clean it up
     End If
     
-    ' SAFETY FIRST: Reset any stuck update state from previous sessions
+    ' SAFETY FIRST: Detect and clean up stale/stuck updates from previous sessions
+    DetectStaleUpdate
+    
+    ' Reset any stuck update state from previous sessions
     ' (Only runs if no fresh temp file exists)
     ResetUpdateState
     
@@ -232,6 +235,7 @@ Private Sub DownloadUpdate(ByVal newVersion As String)
     Open tempPathFile For Output As #f
     Print #f, ThisWorkbook.FullName
     Print #f, downloadPath
+    Print #f, backupPath              ' Line 3: pre-update backup path for rollback
     Close #f
     
     logNum = FreeFile
@@ -266,7 +270,23 @@ Private Sub DownloadUpdate(ByVal newVersion As String)
 
 ErrorHandler:
     Application.StatusBar = False
-    MsgBox "Download update failed: " & Err.Number & " - " & Err.Description, vbCritical, "Update Error"
+    Application.EnableEvents = True
+    
+    ' Clean up downloaded file if it exists
+    On Error Resume Next
+    If Len(downloadPath) > 0 Then
+        If Dir(downloadPath) <> "" Then Kill downloadPath
+    End If
+    Dim tmpFile As String
+    tmpFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
+    If Dir(tmpFile) <> "" Then Kill tmpFile
+    On Error GoTo 0
+    
+    MsgBox "The update could not be completed and has been cancelled." & vbCrLf & vbCrLf & _
+           "Nothing has been changed - your workbook is exactly as it was." & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+           "You can try again later or contact VIRGIL_Support@proton.me for help.", _
+           vbExclamation, "Update Cancelled"
 End Sub
 
 ' ============================================
@@ -288,6 +308,7 @@ Public Sub TransferMyData()
     Dim archiveSubfolder As String
     Dim archivePath As String
     Dim finalPath As String
+    Dim backupPath As String
     Dim COPY_FOLDERS_TO_ARCHIVE As Boolean
 
     logFile = Environ$("TEMP") & "\MercariUpdateLog.txt"
@@ -321,6 +342,7 @@ Public Sub TransferMyData()
     Open tempPathFile For Input As #f
     Line Input #f, sourceWorkbookPath
     Line Input #f, newWorkbookPath
+    If Not EOF(f) Then Line Input #f, backupPath
     Close #f
 
     LogEntry logFile, "STEP 1: Read temp file - source=" & sourceWorkbookPath
@@ -369,6 +391,7 @@ Public Sub TransferMyData()
     Print #p2, sourceWorkbookPath     ' Line 2: source workbook full path (to archive it)
     Print #p2, oldFolder              ' Line 3: old folder path
     Print #p2, oldFileName            ' Line 4: old file name
+    Print #p2, backupPath             ' Line 5: pre-update backup path for rollback
     Close #p2
 
     LogEntry logFile, "  Phase 2 file written. Scheduling deferred close+archive via OnTime..."
@@ -384,19 +407,12 @@ Public Sub TransferMyData()
     Exit Sub
 
 ErrorHandler:
-    ' LOG: Error occurred
-    logNum = FreeFile
-    Open logFile For Append As #logNum
-    Print #logNum, "CRITICAL ERROR at " & Now
-    Print #logNum, "  Error Number: " & Err.Number
-    Print #logNum, "  Error Description: " & Err.Description
-    Print #logNum, "  oldFolder: " & oldFolder
-    Print #logNum, "  oldFileName: " & oldFileName
-    Print #logNum, "  archiveFolder: " & archiveFolder
-    Print #logNum, "  archiveSubfolder: " & archiveSubfolder
-    Print #logNum, "  archivePath: " & archivePath
-    Print #logNum, "=== LOG END ==="
-    Close #logNum
+    Dim errNum As Long
+    Dim errDesc As String
+    errNum = Err.Number
+    errDesc = Err.Description
+    
+    LogEntry logFile, "PHASE 1 ERROR: " & errNum & " - " & errDesc
 
     Application.ScreenUpdating = True
     Application.StatusBar = False
@@ -404,13 +420,19 @@ ErrorHandler:
     Application.EnableEvents = True
     DoEvents
 
+    ' Close source workbook if still open
     On Error Resume Next
     If Not sourceWb Is Nothing Then sourceWb.Close SaveChanges:=False
     On Error GoTo 0
 
-    MsgBox "Update transfer encountered an error." & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
-           "See log at: " & logFile, vbCritical, "Transfer Error"
+    ' Rollback: clean up temp files, delete downloaded file
+    RollbackUpdate logFile, "", ""
+
+    MsgBox "The update encountered an error during data transfer and has been rolled back." & vbCrLf & vbCrLf & _
+           "Your original workbook has not been modified." & vbCrLf & vbCrLf & _
+           "Error: " & errNum & " - " & errDesc & vbCrLf & vbCrLf & _
+           "You can try again later or contact VIRGIL_Support@proton.me for help.", _
+           vbExclamation, "Update Rolled Back"
 End Sub
 
 ' ============================================
@@ -428,6 +450,7 @@ Public Sub CompleteUpdatePhase2()
     Dim archiveSubfolder As String
     Dim archivePath As String
     Dim finalPath As String
+    Dim backupPath As String
     Dim fso As Object
     Dim f As Integer
     Dim wb As Workbook
@@ -453,6 +476,7 @@ Public Sub CompleteUpdatePhase2()
     Line Input #f, sourceWorkbookPath
     Line Input #f, oldFolder
     Line Input #f, oldFileName
+    If Not EOF(f) Then Line Input #f, backupPath
     Close #f
 
     LogEntry logFile, "  sourceWbName = " & sourceWbName
@@ -569,17 +593,39 @@ Public Sub CompleteUpdatePhase2()
     On Error Resume Next
     fso.MoveFile sourceWorkbookPath, archivePath
     If Err.Number <> 0 Then
-        LogEntry logFile, "  MoveFile failed (" & Err.Number & "), trying CopyFile+Kill..."
+        LogEntry logFile, "  MoveFile failed (" & Err.Number & " - " & Err.Description & "), trying CopyFile+Kill..."
         Err.Clear
         fso.CopyFile sourceWorkbookPath, archivePath, True
-        If Err.Number = 0 Then
-            Kill sourceWorkbookPath
-        Else
+        If Err.Number <> 0 Then
             LogEntry logFile, "  CopyFile also failed: " & Err.Number & " - " & Err.Description
         End If
+        Err.Clear
     End If
-    Err.Clear
     On Error GoTo Phase2Error
+    
+    ' Verify the old workbook was removed - force delete if still present
+    If Dir(sourceWorkbookPath) <> "" Then
+        LogEntry logFile, "  Old workbook still exists after move/copy. Force deleting..."
+        On Error Resume Next
+        Kill sourceWorkbookPath
+        If Err.Number <> 0 Then
+            LogEntry logFile, "  Kill failed (" & Err.Number & "). Trying fso.DeleteFile..."
+            Err.Clear
+            fso.DeleteFile sourceWorkbookPath, True
+            If Err.Number <> 0 Then
+                LogEntry logFile, "  DeleteFile also failed: " & Err.Number & " - " & Err.Description
+                Err.Clear
+            End If
+        End If
+        On Error GoTo Phase2Error
+    End If
+    
+    ' Final verification
+    If Dir(sourceWorkbookPath) = "" Then
+        LogEntry logFile, "  Old workbook successfully removed."
+    Else
+        LogEntry logFile, "  WARNING: Old workbook could not be deleted: " & sourceWorkbookPath
+    End If
 
     ' --- STEP E: Save new workbook to original location ---
     finalPath = oldFolder & "\" & oldFileName
@@ -614,14 +660,26 @@ Public Sub CompleteUpdatePhase2()
     Exit Sub
 
 Phase2Error:
-    LogEntry logFile, "PHASE 2 ERROR: " & Err.Number & " - " & Err.Description
+    Dim p2ErrNum As Long
+    Dim p2ErrDesc As String
+    p2ErrNum = Err.Number
+    p2ErrDesc = Err.Description
+    
+    LogEntry logFile, "PHASE 2 ERROR: " & p2ErrNum & " - " & p2ErrDesc
+    
     Application.ScreenUpdating = True
     Application.StatusBar = False
     Application.DisplayAlerts = True
     Application.EnableEvents = True
-    MsgBox "Update Phase 2 encountered an error." & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
-           "See log at: " & logFile, vbCritical, "Update Error"
+
+    ' Attempt rollback from pre-update backup
+    RollbackUpdate logFile, backupPath, sourceWorkbookPath
+
+    MsgBox "The update encountered an error and has been rolled back." & vbCrLf & vbCrLf & _
+           "Your original workbook has been restored from the pre-update backup." & vbCrLf & vbCrLf & _
+           "Error: " & p2ErrNum & " - " & p2ErrDesc & vbCrLf & vbCrLf & _
+           "You can try again later or contact VIRGIL_Support@proton.me for help.", _
+           vbExclamation, "Update Rolled Back"
 End Sub
 
 ' Transfer data rows from source workbook sheet to this workbook
@@ -869,6 +927,140 @@ ErrorHandler:
     MsgBox "Backup failed: " & Err.Number & " - " & Err.Description, vbExclamation, "Backup Error"
     CreatePreUpdateBackup = ""
 End Function
+
+' ============================================
+' ROLLBACK UPDATE - Undo a failed update
+' ============================================
+
+Private Sub RollbackUpdate(ByVal logFile As String, ByVal backupPath As String, ByVal sourceWorkbookPath As String)
+    On Error Resume Next
+    
+    LogEntry logFile, "=== ROLLBACK STARTED ==="
+    
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    ' 1. Clean up all temp files
+    Dim tempFiles As Variant
+    Dim tf As Long
+    tempFiles = Array( _
+        Environ$("TEMP") & "\MercariUpdateSource.txt", _
+        Environ$("TEMP") & "\MercariUpdatePhase2.txt")
+    For tf = LBound(tempFiles) To UBound(tempFiles)
+        If Dir(tempFiles(tf)) <> "" Then
+            Kill tempFiles(tf)
+            LogEntry logFile, "  Deleted temp file: " & tempFiles(tf)
+        End If
+    Next tf
+    
+    ' 2. Delete the downloaded new workbook file (the _v*.xlsm file) if it still exists
+    '    Look for files matching the pattern in ThisWorkbook.Path
+    Dim downloadedFile As String
+    downloadedFile = Dir(ThisWorkbook.Path & "\*_v*.xlsm")
+    Do While downloadedFile <> ""
+        ' Don't delete the workbook we're currently running in
+        If LCase(downloadedFile) <> LCase(ThisWorkbook.Name) Then
+            LogEntry logFile, "  Deleting downloaded file: " & downloadedFile
+            Kill ThisWorkbook.Path & "\" & downloadedFile
+        End If
+        downloadedFile = Dir()
+    Loop
+    
+    ' 3. If we have a backup path and the original source is gone, restore it
+    If Len(backupPath) > 0 And Len(sourceWorkbookPath) > 0 Then
+        If Dir(backupPath) <> "" And Dir(sourceWorkbookPath) = "" Then
+            LogEntry logFile, "  Restoring original from backup: " & backupPath
+            fso.CopyFile backupPath, sourceWorkbookPath, True
+            If Dir(sourceWorkbookPath) <> "" Then
+                LogEntry logFile, "  Original workbook restored successfully."
+            Else
+                LogEntry logFile, "  WARNING: Restore may have failed."
+            End If
+        ElseIf Dir(sourceWorkbookPath) <> "" Then
+            LogEntry logFile, "  Original workbook still exists - no restore needed."
+        Else
+            LogEntry logFile, "  WARNING: Backup not found at: " & backupPath
+        End If
+    Else
+        LogEntry logFile, "  No backup path available - original workbook should still be intact."
+    End If
+    
+    ' 4. Clean up any partial archive folders created during this attempt
+    '    (Only if they were created in the last 5 minutes)
+    Dim archiveBase As String
+    archiveBase = ThisWorkbook.Path & "\Archived"
+    If Dir(archiveBase, vbDirectory) <> "" Then
+        Dim subFolder As String
+        subFolder = Dir(archiveBase & "\Archived *", vbDirectory)
+        Do While subFolder <> ""
+            Dim fullSubPath As String
+            fullSubPath = archiveBase & "\" & subFolder
+            ' Only remove if created very recently (within 5 minutes)
+            If (Now - FileDateTime(fullSubPath)) < (5 / 1440) Then
+                LogEntry logFile, "  Removing partial archive folder: " & fullSubPath
+                fso.DeleteFolder fullSubPath, True
+            End If
+            subFolder = Dir()
+        Loop
+    End If
+    
+    LogEntry logFile, "=== ROLLBACK COMPLETE ==="
+    
+    On Error GoTo 0
+End Sub
+
+' ============================================
+' DETECT STALE/STUCK UPDATES (called from CheckForUpdatesOnOpen)
+' ============================================
+
+Public Sub DetectStaleUpdate()
+    On Error Resume Next
+    
+    Dim tempFile As String
+    Dim phase2File As String
+    Dim fileAge As Double
+    
+    tempFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
+    phase2File = Environ$("TEMP") & "\MercariUpdatePhase2.txt"
+    
+    ' Check if either temp file exists and is old (> 5 minutes = stale)
+    Dim staleFile As String
+    staleFile = ""
+    
+    If Dir(tempFile) <> "" Then
+        fileAge = (Now - FileDateTime(tempFile)) * 1440
+        If fileAge > 5 Then staleFile = tempFile
+    End If
+    
+    If Dir(phase2File) <> "" Then
+        fileAge = (Now - FileDateTime(phase2File)) * 1440
+        If fileAge > 5 Then
+            If staleFile = "" Then staleFile = phase2File
+        End If
+    End If
+    
+    If staleFile = "" Then Exit Sub
+    
+    ' Stale update detected - notify user and clean up
+    Dim logFile As String
+    logFile = Environ$("TEMP") & "\MercariUpdateLog.txt"
+    LogEntry logFile, "=== STALE UPDATE DETECTED ==="
+    LogEntry logFile, "  Stale file: " & staleFile & " (age: " & Format(fileAge, "0.0") & " min)"
+    
+    MsgBox "It looks like a previous update didn't finish completely." & vbCrLf & vbCrLf & _
+           "Don't worry - I've cleaned up the leftover files." & vbCrLf & _
+           "Your workbook is safe and working normally." & vbCrLf & vbCrLf & _
+           "You can try updating again whenever you're ready.", _
+           vbInformation, "Previous Update Incomplete"
+    
+    ' Clean up stale files
+    If Dir(tempFile) <> "" Then Kill tempFile
+    If Dir(phase2File) <> "" Then Kill phase2File
+    
+    LogEntry logFile, "  Stale files cleaned up."
+    
+    On Error GoTo 0
+End Sub
 
 ' ============================================
 ' CREATE FOLDER IF MISSING (Local copy for self-containment)
