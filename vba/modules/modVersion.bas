@@ -5,7 +5,7 @@ Option Explicit
 ' VERSION MANAGEMENT MODULE
 ' ============================================
 
-Public Const CURRENT_VERSION As String = "1.0"
+Public Const CURRENT_VERSION As String = "1.2"
 Public Const UPDATE_CHECK_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/version.txt"
 Public Const UPDATE_DOWNLOAD_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/Mercari_Workbook_Latest.xlsm"
 
