@@ -54,28 +54,26 @@ Public Sub CheckForUpdatesOnOpen()
 End Sub
 
 ' Reset any stuck update state from previous interrupted sessions
+' CRITICAL: Only deletes temp files that are OLD (stale)
+' Fresh temp files (created in last 2 minutes) are preserved for active updates
 Private Sub ResetUpdateState()
     On Error Resume Next
     
     Dim tempPathFile As String
+    Dim fileAge As Double
     tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
     
-    ' If temp file exists from a previous session, delete it
+    ' If temp file exists, check if it's old (stale) before deleting
     If Dir(tempPathFile) <> "" Then
-        Kill tempPathFile
-    End If
-    
-    ' Also clean up any other temp files that might be stuck
-    Dim fso As Object
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    
-    ' Clean up update-related temp files in temp folder
-    Dim tempFolder As String
-    tempFolder = Environ$("TEMP")
-    
-    ' Remove specific update-related files if they exist
-    If Dir(tempFolder & "\MercariUpdateLog.txt") <> "" Then
-        Kill tempFolder & "\MercariUpdateLog.txt"
+        ' Calculate file age in minutes
+        fileAge = Now - FileDateTime(tempPathFile)
+        fileAge = fileAge * 1440 ' Convert to minutes
+        
+        ' Only delete if file is older than 2 minutes (stale from previous session)
+        ' Fresh files (< 2 min) are from current update - DON'T DELETE
+        If fileAge > 2 Then
+            Kill tempPathFile
+        End If
     End If
     
     On Error GoTo 0
