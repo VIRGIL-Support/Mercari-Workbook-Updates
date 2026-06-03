@@ -15,12 +15,6 @@ Public Sub CheckForUpdatesOnOpen()
     Dim userChoice As VbMsgBoxResult
     Dim tempPathFile As String
     
-    ' DEBUG: Confirm this code is running in new workbook
-    MsgBox "DEBUG: CheckForUpdatesOnOpen is running" & vbCrLf & vbCrLf & _
-           "Workbook: " & ThisWorkbook.Name & vbCrLf & _
-           "Version: " & CURRENT_VERSION & vbCrLf & vbCrLf & _
-           "Click OK to continue...", vbInformation, "DEBUG: New Workbook Opened"
-    
     tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
     
     ' CRITICAL: Check for pending transfer BEFORE calling ResetUpdateState
@@ -263,14 +257,16 @@ Private Sub DownloadUpdate(ByVal newVersion As String)
     Print #logNum, "=== DownloadUpdate complete ==="
     Close #logNum
     
+    ' Disable events to prevent BackupWorkbookBeforeClose from firing on this close
+    Application.EnableEvents = False
     ThisWorkbook.Close SaveChanges:=False
+    Application.EnableEvents = True
 
     Exit Sub
 
 ErrorHandler:
     Application.StatusBar = False
-    MsgBox "UPDATE DEBUG - Error " & Err.Number & ": " & Err.Description & vbCrLf & _
-           "Line that failed will be shown if you click Debug", vbCritical, "Update Error"
+    MsgBox "Download update failed: " & Err.Number & " - " & Err.Description, vbCritical, "Update Error"
 End Sub
 
 ' ============================================
@@ -278,34 +274,8 @@ End Sub
 ' ============================================
 
 Public Sub TransferMyData()
-    ' ============================================
-    ' COMPREHENSIVE LOGGING SYSTEM
-    ' ============================================
     Dim logFile As String
-    logFile = Environ$("TEMP") & "\MercariUpdateLog.txt"
-    
-    ' Declare logNum before using it
     Dim logNum As Integer
-    
-    ' IMMEDIATE TEST: Write to log BEFORE clearing to verify it works
-    logNum = FreeFile
-    Open logFile For Append As #logNum
-    Print #logNum, "=== TEST: TransferMyData starting - can we write to log? ==="
-    Close #logNum
-    
-    MsgBox "DEBUG: Test log entry written. Check log file now.", vbInformation, "DEBUG: Log Test"
-    
-    ' Clear old log
-    On Error Resume Next
-    Kill logFile
-    If Err.Number <> 0 Then
-        MsgBox "ERROR killing old log: " & Err.Number & " - " & Err.Description, vbCritical, "Log Kill Error"
-        Err.Clear
-    End If
-    On Error GoTo 0
-    
-    On Error GoTo ErrorHandler
-
     Dim sourceWorkbookPath As String
     Dim newWorkbookPath As String
     Dim tempPathFile As String
@@ -320,11 +290,18 @@ Public Sub TransferMyData()
     Dim finalPath As String
     Dim COPY_FOLDERS_TO_ARCHIVE As Boolean
 
+    logFile = Environ$("TEMP") & "\MercariUpdateLog.txt"
     COPY_FOLDERS_TO_ARCHIVE = True
 
+    ' Start fresh log
+    On Error Resume Next
+    Kill logFile
+    On Error GoTo 0
+
+    On Error GoTo ErrorHandler
+
     Set fso = CreateObject("Scripting.FileSystemObject")
-    
-    ' LOG: Starting TransferMyData
+
     logNum = FreeFile
     Open logFile For Output As #logNum
     Print #logNum, "=== Mercari Update Log - " & Now & " ==="
@@ -333,63 +310,31 @@ Public Sub TransferMyData()
     Print #logNum, "  Current version: " & CURRENT_VERSION
     Close #logNum
 
-    tempPathFile = Environ$("TEMP") & "\" & "MercariUpdateSource.txt"
-    
-    ' LOG: Check temp file
-    logNum = FreeFile
-    Open logFile For Append As #logNum
-    Print #logNum, "STEP 0A: Checking temp file: " & tempPathFile
-    Print #logNum, "  Temp file exists: " & (Dir(tempPathFile) <> "")
-    Close #logNum
+    tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
 
     If Dir(tempPathFile) = "" Then
-        logNum = FreeFile
-        Open logFile For Append As #logNum
-        Print #logNum, "ERROR: Temp file not found - Exiting"
-        Close #logNum
+        LogEntry logFile, "ERROR: Temp file not found - Exiting"
         Exit Sub
     End If
 
-    ' NO On Error Resume Next - let errors show
     f = FreeFile
     Open tempPathFile For Input As #f
     Line Input #f, sourceWorkbookPath
     Line Input #f, newWorkbookPath
     Close #f
-    
-    ' LOG: Read temp file
-    logNum = FreeFile
-    Open logFile For Append As #logNum
-    Print #logNum, "STEP 0B: Read temp file contents"
-    Print #logNum, "  sourceWorkbookPath: " & sourceWorkbookPath
-    Print #logNum, "  newWorkbookPath: " & newWorkbookPath
-    Close #logNum
+
+    LogEntry logFile, "STEP 1: Read temp file - source=" & sourceWorkbookPath
 
     If sourceWorkbookPath = "" Or Dir(sourceWorkbookPath) = "" Then
-        logNum = FreeFile
-        Open logFile For Append As #logNum
-        Print #logNum, "ERROR: Source workbook not found - Exiting"
-        Close #logNum
+        LogEntry logFile, "ERROR: Source workbook not found - Exiting"
         Kill tempPathFile
         Exit Sub
     End If
 
     oldFolder = fso.GetParentFolderName(sourceWorkbookPath)
     oldFileName = fso.GetFileName(sourceWorkbookPath)
-    
-    ' LOG: Variables set
-    logNum = FreeFile
-    Open logFile For Append As #logNum
-    Print #logNum, "STEP 0C: Variables set"
-    Print #logNum, "  oldFolder: " & oldFolder
-    Print #logNum, "  oldFileName: " & oldFileName
-    Close #logNum
 
-    MsgBox "TransferMyData is starting..." & vbCrLf & vbCrLf & _
-           "Old workbook : " & sourceWorkbookPath & vbCrLf & _
-           "New workbook : " & newWorkbookPath & vbCrLf & _
-           "Target folder: " & oldFolder & vbCrLf & vbCrLf & _
-           "Click OK to begin data transfer.", vbInformation, "Update Transfer Starting"
+    LogEntry logFile, "STEP 2: Opening source workbook (ReadOnly)..."
 
     Application.StatusBar = "Opening source workbook..."
     Application.ScreenUpdating = False
@@ -407,111 +352,33 @@ Public Sub TransferMyData()
 
     Application.StatusBar = "Transferring LOOKUPS..."
     TransferSheetData sourceWb, "LOOKUPS"
-    
-    MsgBox "DEBUG: All data transfers completed!" & vbCrLf & vbCrLf & _
-           "About to close source workbook...", vbInformation, "DEBUG: Data Transfer Complete"
 
-    On Error GoTo ArchivingErrorHandler
-    
-    MsgBox "DEBUG: Step 1 - ScreenUpdating = True", vbInformation, "DEBUG: Step 1"
-    Application.ScreenUpdating = True
-    
-    MsgBox "DEBUG: Step 2 - DoEvents", vbInformation, "DEBUG: Step 2"
-    DoEvents
-    
-    MsgBox "DEBUG: Step 3 - About to set Saved = True", vbInformation, "DEBUG: Step 3"
+    LogEntry logFile, "STEP 3: Data transfer complete. Closing source workbook..."
 
-    ' Force close the source workbook - don't wait for dialogs
-    MsgBox "DEBUG: Step 3A - About to set On Error Resume Next", vbInformation, "DEBUG: Step 3A"
-    On Error Resume Next
-    
-    MsgBox "DEBUG: Step 3B - About to set sourceWb.Saved = True", vbInformation, "DEBUG: Step 3B"
-    sourceWb.Saved = True  ' Mark as saved to prevent save prompt
-    
-    MsgBox "DEBUG: Step 3C - About to close sourceWb" & vbCrLf & vbCrLf & _
-           "NOTE: Closing source workbook now. If this hangs, click OK to force continue...", vbInformation, "DEBUG: Step 3C"
-    
-    ' AGGRESSIVE CLOSE METHOD - avoid hanging
+    ' === CLOSE SOURCE WORKBOOK SAFELY ===
+    ' Disable events FIRST to prevent BackupWorkbookBeforeClose from firing
+    Application.EnableEvents = False
     Application.DisplayAlerts = False
     sourceWb.Saved = True
-    Application.EnableEvents = False
-    
-    MsgBox "DEBUG: Step 3C2 - Set Saved=True and EnableEvents=False", vbInformation, "DEBUG: Step 3C2"
-    
-    ' Try to close - if it hangs, we'll try alternative
-    On Error Resume Next
     sourceWb.Close SaveChanges:=False
-    Application.DisplayAlerts = True
     Application.EnableEvents = True
-    
-    MsgBox "DEBUG: Step 3D - sourceWb.Close completed, checking for errors", vbInformation, "DEBUG: Step 3D"
-    If Err.Number <> 0 Then
-        MsgBox "WARNING: Error closing workbook: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
-               "Attempting force close...", vbExclamation, "Close Warning"
-        Err.Clear
-        ' Try again with Application.DisplayAlerts off
-        Application.DisplayAlerts = False
-        sourceWb.Close SaveChanges:=False
-        Application.DisplayAlerts = True
-    End If
-    
-    MsgBox "DEBUG: Step 3E - About to set On Error GoTo ErrorHandler", vbInformation, "DEBUG: Step 3E"
-    On Error GoTo ErrorHandler
-    
-    MsgBox "DEBUG: sourceWb.Close executed", vbInformation, "DEBUG: Close Executed"
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
 
     Set sourceWb = Nothing
     DoEvents
-    
-    MsgBox "DEBUG: Source workbook closed successfully" & vbCrLf & vbCrLf & _
-           "About to delete temp file...", vbInformation, "DEBUG: Close Complete"
+
+    LogEntry logFile, "STEP 4: Source workbook closed. Deleting temp file..."
 
     If Dir(tempPathFile) <> "" Then Kill tempPathFile
-    
-    ' LOG: Data transfer complete, starting archiving
-    logNum = FreeFile
-    Open logFile For Append As #logNum
-    Print #logNum, "STEP 0D: Data transfer complete, temp file deleted"
-    Print #logNum, "  About to start archiving section"
-    Close #logNum
 
     ' ============================================
-    ' ARCHIVING DEBUG - Step by Step
+    ' ARCHIVING SECTION
     ' ============================================
-    
-    MsgBox "DEBUG: About to start archiving..." & vbCrLf & vbCrLf & _
-           "oldFolder = '" & oldFolder & "'" & vbCrLf & _
-           "oldFileName = '" & oldFileName & "'" & vbCrLf & _
-           "Click OK to create Archived folder", vbInformation, "DEBUG: Step 1 of 7"
-    
-    ' LOG: Archiving starting
-    logNum = FreeFile
-    Open logFile For Append As #logNum
-    Print #logNum, "STEP 1: Creating Archived folder"
-    Print #logNum, "  archiveFolder will be: " & oldFolder & "\Archived"
-    Close #logNum
-    
-    Application.StatusBar = "STEP 1: Creating Archived folder..."
+    LogEntry logFile, "STEP 5: Creating Archived folder..."
+
     archiveFolder = oldFolder & "\Archived"
-    
-    ' CRITICAL: Remove error handling to see what's actually failing
-    ' On Error Resume Next
     CreateFolderIfMissing archiveFolder
-    
-    ' Check if folder was created
-    If Dir(archiveFolder, vbDirectory) = "" Then
-        MsgBox "FOLDER CREATION FAILED!" & vbCrLf & vbCrLf & _
-               "archiveFolder: " & archiveFolder & vbCrLf & _
-               "The folder does not exist after CreateFolderIfMissing", vbCritical, "CRITICAL ERROR Step 1"
-        ' Try to continue anyway
-    Else
-        MsgBox "DEBUG: Archived folder created (or already exists)" & vbCrLf & _
-               "archiveFolder = '" & archiveFolder & "'" & vbCrLf & _
-               "Click OK to create timestamped subfolder", vbInformation, "DEBUG: Step 2 of 7"
-    End If
-    ' On Error GoTo ErrorHandler - restored below
-
-    Application.StatusBar = "STEP 2: Creating timestamped subfolder..."
 
     Dim timestampReadable As String
     Dim ampm As String
@@ -546,98 +413,55 @@ Public Sub TransferMyData()
                         " at " & Format(hourNum, "00") & "-" & Format(Minute(Now), "00") & "-" & Format(Second(Now), "00") & " " & ampm
 
     archiveSubfolder = archiveFolder & "\" & timestampReadable
-    
-    ' NO On Error Resume Next - let errors show
     CreateFolderIfMissing archiveSubfolder
-    
-    ' Verify folder was created
-    If Dir(archiveSubfolder, vbDirectory) = "" Then
-        MsgBox "ERROR: Timestamped subfolder not created!" & vbCrLf & _
-               "archiveSubfolder: " & archiveSubfolder, vbCritical, "CRITICAL ERROR Step 2"
-        ' Continue anyway
-    Else
-        MsgBox "DEBUG: Timestamped subfolder created" & vbCrLf & _
-               "archiveSubfolder = '" & archiveSubfolder & "'" & vbCrLf & _
-               "Click OK to copy folders", vbInformation, "DEBUG: Step 3 of 7"
-    End If
+
+    LogEntry logFile, "STEP 6: Archive subfolder=" & archiveSubfolder
 
     archivePath = archiveSubfolder & "\" & oldFileName
 
+    ' Copy project folders to archive
     If COPY_FOLDERS_TO_ARCHIVE Then
-        MsgBox "DEBUG: About to copy project folders" & vbCrLf & _
-               "Click OK to start copying folders", vbInformation, "DEBUG: Step 3 of 7"
-        Application.StatusBar = "STEP 3: Copying project folders to archive..."
+        Application.StatusBar = "Copying project folders to archive..."
         Dim folderNames As Variant
         Dim i As Long
-        Dim sourceFolder As String
-        Dim destFolder As String
-        folderNames = Array("1 READY TO LIST", "2 DESCRIPTION FILES", "3 SOLD", "4 Backups", "5 Logs")
+        Dim srcFldr As String
+        Dim destFldr As String
+        folderNames = Array("1 READY TO LIST", "2 DESCRIPTION FILES", "3 SOLD", "Backups", "Logs")
         For i = LBound(folderNames) To UBound(folderNames)
-            sourceFolder = oldFolder & "\" & folderNames(i)
-            destFolder = archiveSubfolder & "\" & folderNames(i)
-            If fso.FolderExists(sourceFolder) Then
-                ' NO On Error Resume Next
-                fso.CopyFolder sourceFolder, destFolder, True
+            srcFldr = oldFolder & "\" & folderNames(i)
+            destFldr = archiveSubfolder & "\" & folderNames(i)
+            If fso.FolderExists(srcFldr) Then
+                On Error Resume Next
+                fso.CopyFolder srcFldr, destFldr, True
+                On Error GoTo ErrorHandler
             End If
         Next i
     End If
 
-    MsgBox "DEBUG: About to move old workbook to archive" & vbCrLf & _
-           "sourceWorkbookPath = '" & sourceWorkbookPath & "'" & vbCrLf & _
-           "archivePath = '" & archivePath & "'" & vbCrLf & _
-           "Click OK to move workbook", vbInformation, "DEBUG: Step 4 of 7"
+    ' Move (or copy+delete) the old workbook to the archive
+    Application.StatusBar = "Archiving old workbook..."
+    LogEntry logFile, "STEP 7: Moving old workbook to archive..."
 
-    Application.StatusBar = "STEP 4: Moving old workbook to archive..."
-    
-    ' Try to move the file - NO On Error Resume Next
-    On Error GoTo MoveError
+    On Error Resume Next
     fso.MoveFile sourceWorkbookPath, archivePath
-    On Error GoTo 0
-    
-    MsgBox "DEBUG: Old workbook moved successfully" & vbCrLf & _
-           "Click OK to save new workbook", vbInformation, "DEBUG: Step 5 of 7"
-    GoTo MoveSuccess
-    
-MoveError:
-    On Error GoTo 0
-    MsgBox "MoveFile failed. Trying Copy+Delete..." & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, vbExclamation, "DEBUG: Move Failed"
-    
-    ' Try copy and delete approach
-    On Error GoTo CopyError
-    fso.CopyFile sourceWorkbookPath, archivePath, True
-    Kill sourceWorkbookPath
-    On Error GoTo 0
-    
-    MsgBox "DEBUG: Old workbook copied and deleted successfully" & vbCrLf & _
-           "Click OK to save new workbook", vbInformation, "DEBUG: Step 5 of 7"
-    GoTo MoveSuccess
-    
-CopyError:
-    On Error GoTo 0
-    MsgBox "ERROR moving workbook: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
-           "source: " & sourceWorkbookPath & vbCrLf & _
-           "dest: " & archivePath, vbCritical, "CRITICAL ERROR Step 4"
-    ' Continue anyway
+    If Err.Number <> 0 Then
+        Err.Clear
+        fso.CopyFile sourceWorkbookPath, archivePath, True
+        If Err.Number = 0 Then
+            Kill sourceWorkbookPath
+        End If
+    End If
+    On Error GoTo ErrorHandler
 
-MoveSuccess:
-
-    Application.StatusBar = "STEP 5: Saving new workbook to original location..."
+    ' Save new workbook to the original location/name
+    Application.StatusBar = "Saving updated workbook..."
     finalPath = oldFolder & "\" & oldFileName
 
-    MsgBox "DEBUG: About to save new workbook" & vbCrLf & _
-           "finalPath = '" & finalPath & "'" & vbCrLf & _
-           "Click OK to save", vbInformation, "DEBUG: Step 5 of 7 - Save"
-    
+    LogEntry logFile, "STEP 8: Saving new workbook as " & finalPath
+
     Application.DisplayAlerts = False
-    
-    ' NO On Error Resume Next - let errors show
     ThisWorkbook.SaveAs fileName:=finalPath, FileFormat:=xlOpenXMLWorkbookMacroEnabled
-    
     Application.DisplayAlerts = True
-    
-    MsgBox "DEBUG: New workbook saved successfully!" & vbCrLf & _
-           "Click OK to finish", vbInformation, "DEBUG: Step 6 of 7"
 
     Application.ScreenUpdating = True
     Application.StatusBar = False
@@ -651,33 +475,18 @@ MoveSuccess:
 
     Application.StatusBar = "Update complete!"
 
-    MsgBox "DEBUG: Step 7 - SUCCESS!" & vbCrLf & vbCrLf & _
-           "Welcome to your newly updated workbook!" & vbCrLf & vbCrLf & _
+    LogEntry logFile, "SUCCESS: Update completed at " & Now & " | Archived to: " & archiveSubfolder
+
+    MsgBox "Welcome to your newly updated workbook!" & vbCrLf & vbCrLf & _
            "All of your data has been transferred successfully and everything is right where you left it." & vbCrLf & vbCrLf & _
            "Your previous version has been archived in:" & vbCrLf & _
            archiveSubfolder & vbCrLf & vbCrLf & _
            "The old workbook" & IIf(COPY_FOLDERS_TO_ARCHIVE, " and project folders", "") & _
            " have been safely stored there in case you need them." & vbCrLf & vbCrLf & _
            "If you happen to spot any issues, please email:" & vbCrLf & _
-           "VIRGIL_Support@proton.me", vbInformation, "DEBUG: Step 7 of 7 - SUCCESS!"
-    
-    ' LOG: Transfer completed successfully
-    logNum = FreeFile
-    Open logFile For Append As #logNum
-    Print #logNum, "SUCCESS: TransferMyData completed at " & Now
-    Print #logNum, "  Archived to: " & archiveSubfolder
-    Print #logNum, "  Final path: " & finalPath
-    Print #logNum, "=== TRANSFER COMPLETE ==="
-    Close #logNum
+           "VIRGIL_Support@proton.me", vbInformation, "Update Complete!"
 
-    On Error GoTo 0
     Exit Sub
-
-ArchivingErrorHandler:
-    MsgBox "ARCHIVING ERROR CAUGHT!" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
-           "This happened during the archiving process.", vbCritical, "ARCHIVING ERROR"
-    Resume Next
 
 ErrorHandler:
     ' LOG: Error occurred
@@ -693,18 +502,20 @@ ErrorHandler:
     Print #logNum, "  archivePath: " & archivePath
     Print #logNum, "=== LOG END ==="
     Close #logNum
-    
+
     Application.ScreenUpdating = True
     Application.StatusBar = False
     Application.DisplayAlerts = True
+    Application.EnableEvents = True
     DoEvents
 
     On Error Resume Next
     If Not sourceWb Is Nothing Then sourceWb.Close SaveChanges:=False
     On Error GoTo 0
 
-    MsgBox "TRANSFER ERROR - See log at:" & vbCrLf & logFile & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, vbCritical, "Transfer Error"
+    MsgBox "Update transfer encountered an error." & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+           "See log at: " & logFile, vbCritical, "Transfer Error"
 End Sub
 
 ' Transfer data rows from source workbook sheet to this workbook
@@ -958,12 +769,19 @@ End Function
 ' ============================================
 
 Private Sub CreateFolderIfMissing(folderPath As String)
-    ' NO On Error Resume Next - report errors
     If Dir(folderPath, vbDirectory) = "" Then
         MkDir folderPath
-        ' Verify folder was created
-        If Dir(folderPath, vbDirectory) = "" Then
-            MsgBox "ERROR: Failed to create folder:" & vbCrLf & folderPath, vbCritical, "Folder Creation Failed"
-        End If
     End If
+End Sub
+
+' ============================================
+' LOG ENTRY HELPER
+' ============================================
+
+Private Sub LogEntry(ByVal logFile As String, ByVal msg As String)
+    Dim fn As Integer
+    fn = FreeFile
+    Open logFile For Append As #fn
+    Print #fn, Format(Now, "hh:nn:ss") & "  " & msg
+    Close #fn
 End Sub
