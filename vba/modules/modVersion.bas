@@ -428,8 +428,21 @@ Public Sub TransferMyData()
     MsgBox "DEBUG: Step 3B - About to set sourceWb.Saved = True", vbInformation, "DEBUG: Step 3B"
     sourceWb.Saved = True  ' Mark as saved to prevent save prompt
     
-    MsgBox "DEBUG: Step 3C - About to close sourceWb", vbInformation, "DEBUG: Step 3C"
+    MsgBox "DEBUG: Step 3C - About to close sourceWb" & vbCrLf & vbCrLf & _
+           "NOTE: Closing source workbook now. If this hangs, click OK to force continue...", vbInformation, "DEBUG: Step 3C"
+    
+    ' AGGRESSIVE CLOSE METHOD - avoid hanging
+    Application.DisplayAlerts = False
+    sourceWb.Saved = True
+    Application.EnableEvents = False
+    
+    MsgBox "DEBUG: Step 3C2 - Set Saved=True and EnableEvents=False", vbInformation, "DEBUG: Step 3C2"
+    
+    ' Try to close - if it hangs, we'll try alternative
+    On Error Resume Next
     sourceWb.Close SaveChanges:=False
+    Application.DisplayAlerts = True
+    Application.EnableEvents = True
     
     MsgBox "DEBUG: Step 3D - sourceWb.Close completed, checking for errors", vbInformation, "DEBUG: Step 3D"
     If Err.Number <> 0 Then
