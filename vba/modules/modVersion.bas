@@ -5,11 +5,10 @@ Option Explicit
 ' VERSION MANAGEMENT MODULE
 ' ============================================
 
-Public Const CURRENT_VERSION As String = "1.1"
+Public Const CURRENT_VERSION As String = "1.0"
 Public Const UPDATE_CHECK_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/version.txt"
 Public Const UPDATE_DOWNLOAD_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/Mercari_Workbook_Latest.xlsm"
 
-' Check for updates on workbook open
 Public Sub CheckForUpdatesOnOpen()
     Dim checkResult As String
     Dim latestVersion As String
@@ -18,11 +17,12 @@ Public Sub CheckForUpdatesOnOpen()
     ' SAFETY FIRST: Reset any stuck update state from previous sessions
     ResetUpdateState
     
-    ' SKIP UPDATE CHECK IF THIS WORKBOOK WAS JUST DOWNLOADED
-    ' If opened from Updates folder or temp location, we're in middle of update
-    If InStr(1, ThisWorkbook.Path, "Updates", vbTextCompare) > 0 Then
-        ' This is a newly downloaded workbook - skip update check
-        ' TransferMyData will run after this to transfer settings
+    ' SKIP UPDATE CHECK IF A TRANSFER IS PENDING
+    ' If the temp file exists, this workbook was just downloaded as an update
+    Dim tempPathFile As String
+    tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
+    If Dir(tempPathFile) <> "" Then
+        CheckForPendingTransfer
         Exit Sub
     End If
     
@@ -32,7 +32,6 @@ Public Sub CheckForUpdatesOnOpen()
     checkResult = GetLatestVersionInfo()
     
     If checkResult = "" Then
-        ' No update available or couldn't check
         Exit Sub
     End If
     
@@ -255,7 +254,7 @@ Public Sub TransferMyData()
         Exit Sub
     End If
 
-    oldFolder   = fso.GetParentFolderName(sourceWorkbookPath)
+    oldFolder = fso.GetParentFolderName(sourceWorkbookPath)
     oldFileName = fso.GetFileName(sourceWorkbookPath)
 
     MsgBox "TransferMyData is starting..." & vbCrLf & vbCrLf & _
@@ -345,7 +344,7 @@ Public Sub TransferMyData()
         folderNames = Array("1 READY TO LIST", "2 DESCRIPTION FILES", "3 SOLD", "4 Backups", "5 Logs")
         For i = LBound(folderNames) To UBound(folderNames)
             sourceFolder = oldFolder & "\" & folderNames(i)
-            destFolder   = archiveSubfolder & "\" & folderNames(i)
+            destFolder = archiveSubfolder & "\" & folderNames(i)
             If fso.FolderExists(sourceFolder) Then
                 On Error Resume Next
                 fso.CopyFolder sourceFolder, destFolder, True
@@ -433,7 +432,7 @@ Private Sub TransferSheetData(ByVal sourceWb As Workbook, ByVal sheetName As Str
     If srcWs Is Nothing Or destWs Is Nothing Then Exit Sub
     
     ' Find data range in source
-    srcLastRow = srcWs.Cells(srcWs.Rows.Count, 1).End(xlUp).Row
+    srcLastRow = srcWs.Cells(srcWs.Rows.Count, 1).End(xlUp).row
     srcLastCol = srcWs.Cells(1, srcWs.Columns.Count).End(xlToLeft).Column
     
     If srcLastRow < 2 Then Exit Sub ' No data rows
@@ -443,7 +442,7 @@ Private Sub TransferSheetData(ByVal sourceWb As Workbook, ByVal sheetName As Str
     
     ' Clear existing data in destination (keep headers)
     Dim destLastRow As Long
-    destLastRow = destWs.Cells(destWs.Rows.Count, 1).End(xlUp).Row
+    destLastRow = destWs.Cells(destWs.Rows.Count, 1).End(xlUp).row
     If destLastRow >= 2 Then
         destWs.Range(destWs.Cells(2, 1), destWs.Cells(destLastRow, srcLastCol)).Clear
     End If
@@ -551,7 +550,7 @@ Public Sub UpdateSetting(ByVal settingName As String, ByVal settingValue As Stri
     Dim foundRow As Long
     
     Set wsSettings = ThisWorkbook.Worksheets("SETTINGS")
-    lastRow = wsSettings.Cells(wsSettings.Rows.Count, 1).End(xlUp).Row
+    lastRow = wsSettings.Cells(wsSettings.Rows.Count, 1).End(xlUp).row
     foundRow = 0
     
     ' Search for existing setting
