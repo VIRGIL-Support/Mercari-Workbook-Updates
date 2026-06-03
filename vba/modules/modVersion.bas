@@ -422,9 +422,16 @@ Public Sub TransferMyData()
     MsgBox "DEBUG: Step 3 - About to set Saved = True", vbInformation, "DEBUG: Step 3"
 
     ' Force close the source workbook - don't wait for dialogs
+    MsgBox "DEBUG: Step 3A - About to set On Error Resume Next", vbInformation, "DEBUG: Step 3A"
     On Error Resume Next
+    
+    MsgBox "DEBUG: Step 3B - About to set sourceWb.Saved = True", vbInformation, "DEBUG: Step 3B"
     sourceWb.Saved = True  ' Mark as saved to prevent save prompt
+    
+    MsgBox "DEBUG: Step 3C - About to close sourceWb", vbInformation, "DEBUG: Step 3C"
     sourceWb.Close SaveChanges:=False
+    
+    MsgBox "DEBUG: Step 3D - sourceWb.Close completed, checking for errors", vbInformation, "DEBUG: Step 3D"
     If Err.Number <> 0 Then
         MsgBox "WARNING: Error closing workbook: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
                "Attempting force close...", vbExclamation, "Close Warning"
@@ -434,6 +441,8 @@ Public Sub TransferMyData()
         sourceWb.Close SaveChanges:=False
         Application.DisplayAlerts = True
     End If
+    
+    MsgBox "DEBUG: Step 3E - About to set On Error GoTo ErrorHandler", vbInformation, "DEBUG: Step 3E"
     On Error GoTo ErrorHandler
     
     MsgBox "DEBUG: sourceWb.Close executed", vbInformation, "DEBUG: Close Executed"
