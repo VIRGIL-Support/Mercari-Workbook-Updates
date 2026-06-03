@@ -408,6 +408,13 @@ Public Sub TransferMyData()
     DoEvents
 
     If Dir(tempPathFile) <> "" Then Kill tempPathFile
+    
+    ' LOG: Data transfer complete, starting archiving
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "STEP 0D: Data transfer complete, temp file deleted"
+    Print #logNum, "  About to start archiving section"
+    Close #logNum
 
     ' ============================================
     ' ARCHIVING DEBUG - Step by Step
@@ -417,6 +424,13 @@ Public Sub TransferMyData()
            "oldFolder = '" & oldFolder & "'" & vbCrLf & _
            "oldFileName = '" & oldFileName & "'" & vbCrLf & _
            "Click OK to create Archived folder", vbInformation, "DEBUG: Step 1 of 7"
+    
+    ' LOG: Archiving starting
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "STEP 1: Creating Archived folder"
+    Print #logNum, "  archiveFolder will be: " & oldFolder & "\Archived"
+    Close #logNum
     
     Application.StatusBar = "STEP 1: Creating Archived folder..."
     archiveFolder = oldFolder & "\Archived"
@@ -566,6 +580,15 @@ Public Sub TransferMyData()
            " have been safely stored there in case you need them." & vbCrLf & vbCrLf & _
            "If you happen to spot any issues, please email:" & vbCrLf & _
            "VIRGIL_Support@proton.me", vbInformation, "DEBUG: Step 7 of 7 - SUCCESS!"
+    
+    ' LOG: Transfer completed successfully
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "SUCCESS: TransferMyData completed at " & Now
+    Print #logNum, "  Archived to: " & archiveSubfolder
+    Print #logNum, "  Final path: " & finalPath
+    Print #logNum, "=== TRANSFER COMPLETE ==="
+    Close #logNum
 
     Exit Sub
 
