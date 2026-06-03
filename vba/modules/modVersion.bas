@@ -629,7 +629,13 @@ Public Sub CompleteUpdatePhase2()
 
     ' --- STEP E: Save new workbook to original location ---
     finalPath = oldFolder & "\" & oldFileName
+    
+    ' Capture the downloaded file path BEFORE SaveAs changes it
+    Dim downloadedFilePath As String
+    downloadedFilePath = ThisWorkbook.FullName
+    
     LogEntry logFile, "PHASE2 STEP F: Saving new workbook as " & finalPath
+    LogEntry logFile, "  Downloaded file to clean up: " & downloadedFilePath
 
     Application.StatusBar = "Saving updated workbook..."
     Application.DisplayAlerts = False
@@ -637,6 +643,21 @@ Public Sub CompleteUpdatePhase2()
     Application.DisplayAlerts = True
 
     ThisWorkbook.Save
+    
+    ' Delete the downloaded _v*.xlsm file (SaveAs doesn't remove it)
+    If LCase(downloadedFilePath) <> LCase(finalPath) Then
+        If Dir(downloadedFilePath) <> "" Then
+            On Error Resume Next
+            Kill downloadedFilePath
+            If Err.Number <> 0 Then
+                LogEntry logFile, "  WARNING: Could not delete downloaded file: " & Err.Description
+                Err.Clear
+            Else
+                LogEntry logFile, "  Downloaded file deleted."
+            End If
+            On Error GoTo Phase2Error
+        End If
+    End If
 
     On Error Resume Next
     ThisWorkbook.Worksheets(WS_INVENTORY).Activate
