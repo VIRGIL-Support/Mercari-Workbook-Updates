@@ -435,17 +435,22 @@ Public Sub TransferMyData()
     Application.StatusBar = "STEP 1: Creating Archived folder..."
     archiveFolder = oldFolder & "\Archived"
     
-    On Error Resume Next
+    ' CRITICAL: Remove error handling to see what's actually failing
+    ' On Error Resume Next
     CreateFolderIfMissing archiveFolder
-    If Err.Number <> 0 Then
-        MsgBox "ERROR creating Archived folder: " & Err.Number & " - " & Err.Description, vbCritical, "DEBUG: Error Step 1"
-        Err.Clear
+    
+    ' Check if folder was created
+    If Dir(archiveFolder, vbDirectory) = "" Then
+        MsgBox "FOLDER CREATION FAILED!" & vbCrLf & vbCrLf & _
+               "archiveFolder: " & archiveFolder & vbCrLf & _
+               "The folder does not exist after CreateFolderIfMissing", vbCritical, "CRITICAL ERROR Step 1"
+        ' Try to continue anyway
     Else
         MsgBox "DEBUG: Archived folder created (or already exists)" & vbCrLf & _
                "archiveFolder = '" & archiveFolder & "'" & vbCrLf & _
                "Click OK to create timestamped subfolder", vbInformation, "DEBUG: Step 2 of 7"
     End If
-    On Error GoTo ErrorHandler
+    ' On Error GoTo ErrorHandler - restored below
 
     Application.StatusBar = "STEP 2: Creating timestamped subfolder..."
 
@@ -483,17 +488,19 @@ Public Sub TransferMyData()
 
     archiveSubfolder = archiveFolder & "\" & timestampReadable
     
-    On Error Resume Next
+    ' NO On Error Resume Next - let errors show
     CreateFolderIfMissing archiveSubfolder
-    If Err.Number <> 0 Then
-        MsgBox "ERROR creating timestamped subfolder: " & Err.Number & " - " & Err.Description, vbCritical, "DEBUG: Error Step 2"
-        Err.Clear
+    
+    ' Verify folder was created
+    If Dir(archiveSubfolder, vbDirectory) = "" Then
+        MsgBox "ERROR: Timestamped subfolder not created!" & vbCrLf & _
+               "archiveSubfolder: " & archiveSubfolder, vbCritical, "CRITICAL ERROR Step 2"
+        ' Continue anyway
     Else
         MsgBox "DEBUG: Timestamped subfolder created" & vbCrLf & _
                "archiveSubfolder = '" & archiveSubfolder & "'" & vbCrLf & _
                "Click OK to copy folders", vbInformation, "DEBUG: Step 3 of 7"
     End If
-    On Error GoTo ErrorHandler
 
     archivePath = archiveSubfolder & "\" & oldFileName
 
@@ -510,9 +517,8 @@ Public Sub TransferMyData()
             sourceFolder = oldFolder & "\" & folderNames(i)
             destFolder = archiveSubfolder & "\" & folderNames(i)
             If fso.FolderExists(sourceFolder) Then
-                On Error Resume Next
+                ' NO On Error Resume Next
                 fso.CopyFolder sourceFolder, destFolder, True
-                On Error GoTo ErrorHandler
             End If
         Next i
     End If
@@ -523,22 +529,39 @@ Public Sub TransferMyData()
            "Click OK to move workbook", vbInformation, "DEBUG: Step 4 of 7"
 
     Application.StatusBar = "STEP 4: Moving old workbook to archive..."
-    On Error Resume Next
+    
+    ' Try to move the file - NO On Error Resume Next
+    On Error GoTo MoveError
     fso.MoveFile sourceWorkbookPath, archivePath
-    If Err.Number <> 0 Then
-        Err.Clear
-        fso.CopyFile sourceWorkbookPath, archivePath, True
-        If Err.Number = 0 Then Kill sourceWorkbookPath
-        Err.Clear
-    End If
-    If Err.Number <> 0 Then
-        MsgBox "ERROR moving workbook: " & Err.Number & " - " & Err.Description, vbCritical, "DEBUG: Error Step 4"
-        Err.Clear
-    Else
-        MsgBox "DEBUG: Old workbook moved successfully" & vbCrLf & _
-               "Click OK to save new workbook", vbInformation, "DEBUG: Step 5 of 7"
-    End If
-    On Error GoTo ErrorHandler
+    On Error GoTo 0
+    
+    MsgBox "DEBUG: Old workbook moved successfully" & vbCrLf & _
+           "Click OK to save new workbook", vbInformation, "DEBUG: Step 5 of 7"
+    GoTo MoveSuccess
+    
+MoveError:
+    On Error GoTo 0
+    MsgBox "MoveFile failed. Trying Copy+Delete..." & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description, vbExclamation, "DEBUG: Move Failed"
+    
+    ' Try copy and delete approach
+    On Error GoTo CopyError
+    fso.CopyFile sourceWorkbookPath, archivePath, True
+    Kill sourceWorkbookPath
+    On Error GoTo 0
+    
+    MsgBox "DEBUG: Old workbook copied and deleted successfully" & vbCrLf & _
+           "Click OK to save new workbook", vbInformation, "DEBUG: Step 5 of 7"
+    GoTo MoveSuccess
+    
+CopyError:
+    On Error GoTo 0
+    MsgBox "ERROR moving workbook: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+           "source: " & sourceWorkbookPath & vbCrLf & _
+           "dest: " & archivePath, vbCritical, "CRITICAL ERROR Step 4"
+    ' Continue anyway
+
+MoveSuccess:
 
     Application.StatusBar = "STEP 5: Saving new workbook to original location..."
     finalPath = oldFolder & "\" & oldFileName
@@ -548,16 +571,14 @@ Public Sub TransferMyData()
            "Click OK to save", vbInformation, "DEBUG: Step 5 of 7 - Save"
     
     Application.DisplayAlerts = False
+    
+    ' NO On Error Resume Next - let errors show
     ThisWorkbook.SaveAs fileName:=finalPath, FileFormat:=xlOpenXMLWorkbookMacroEnabled
+    
     Application.DisplayAlerts = True
     
-    If Err.Number <> 0 Then
-        MsgBox "ERROR saving new workbook: " & Err.Number & " - " & Err.Description, vbCritical, "DEBUG: Error Step 5"
-        Err.Clear
-    Else
-        MsgBox "DEBUG: New workbook saved successfully!" & vbCrLf & _
-               "Click OK to finish", vbInformation, "DEBUG: Step 6 of 7"
-    End If
+    MsgBox "DEBUG: New workbook saved successfully!" & vbCrLf & _
+           "Click OK to finish", vbInformation, "DEBUG: Step 6 of 7"
 
     Application.ScreenUpdating = True
     Application.StatusBar = False
