@@ -18,6 +18,14 @@ Public Sub CheckForUpdatesOnOpen()
     ' SAFETY FIRST: Reset any stuck update state from previous sessions
     ResetUpdateState
     
+    ' SKIP UPDATE CHECK IF THIS WORKBOOK WAS JUST DOWNLOADED
+    ' If opened from Updates folder or temp location, we're in middle of update
+    If InStr(1, ThisWorkbook.Path, "Updates", vbTextCompare) > 0 Then
+        ' This is a newly downloaded workbook - skip update check
+        ' TransferMyData will run after this to transfer settings
+        Exit Sub
+    End If
+    
     ' Check if user wants to auto-check (stored in settings)
     If GetSettingValue("AUTO_CHECK_UPDATES") = "NO" Then Exit Sub
     
