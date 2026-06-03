@@ -338,13 +338,12 @@ Public Sub TransferMyData()
         Exit Sub
     End If
 
-    On Error Resume Next
+    ' NO On Error Resume Next - let errors show
     f = FreeFile
     Open tempPathFile For Input As #f
     Line Input #f, sourceWorkbookPath
     Line Input #f, newWorkbookPath
     Close #f
-    On Error GoTo ErrorHandler
     
     ' LOG: Read temp file
     logNum = FreeFile
@@ -396,16 +395,26 @@ Public Sub TransferMyData()
 
     Application.StatusBar = "Transferring LOOKUPS..."
     TransferSheetData sourceWb, "LOOKUPS"
+    
+    MsgBox "DEBUG: All data transfers completed!" & vbCrLf & vbCrLf & _
+           "About to close source workbook...", vbInformation, "DEBUG: Data Transfer Complete"
 
     Application.ScreenUpdating = True
     DoEvents
 
     On Error Resume Next
     sourceWb.Close SaveChanges:=False
+    If Err.Number <> 0 Then
+        MsgBox "ERROR closing source workbook: " & Err.Number & " - " & Err.Description, vbCritical, "Close Error"
+        Err.Clear
+    End If
     On Error GoTo ErrorHandler
 
     Set sourceWb = Nothing
     DoEvents
+    
+    MsgBox "DEBUG: Source workbook closed successfully" & vbCrLf & vbCrLf & _
+           "About to delete temp file...", vbInformation, "DEBUG: Close Complete"
 
     If Dir(tempPathFile) <> "" Then Kill tempPathFile
     
@@ -652,12 +661,14 @@ Private Sub TransferSheetData(ByVal sourceWb As Workbook, ByVal sheetName As Str
     Dim srcRange As Range
     
     ' Check if sheet exists in both workbooks
-    On Error Resume Next
+    ' NO On Error Resume Next - let errors show
     Set srcWs = sourceWb.Worksheets(sheetName)
     Set destWs = ThisWorkbook.Worksheets(sheetName)
-    On Error GoTo ErrorHandler
     
-    If srcWs Is Nothing Or destWs Is Nothing Then Exit Sub
+    If srcWs Is Nothing Or destWs Is Nothing Then
+        MsgBox "TransferSheetData ERROR: Sheet '" & sheetName & "' not found in source or destination", vbCritical, "Sheet Not Found"
+        Exit Sub
+    End If
     
     ' Find data range in source
     srcLastRow = srcWs.Cells(srcWs.Rows.Count, 1).End(xlUp).row
@@ -683,7 +694,8 @@ Private Sub TransferSheetData(ByVal sourceWb As Workbook, ByVal sheetName As Str
     Exit Sub
     
 ErrorHandler:
-    ' Silently skip sheets that can't be transferred
+    MsgBox "TransferSheetData ERROR for sheet '" & sheetName & "':" & vbCrLf & _
+           "Error " & Err.Number & " - " & Err.Description, vbCritical, "Transfer Sheet Error"
 End Sub
 
 ' ============================================
@@ -712,6 +724,7 @@ Private Function CheckForPendingTransfer() As Boolean
     Close #logNum
     
     ' Remove any leftover Transfer My Data button from previous versions
+    ' NO On Error Resume Next - let errors show if any
     On Error Resume Next
     ThisWorkbook.Worksheets("INVENTORY").Shapes("BTN_TRANSFER_DATA").Delete
     On Error GoTo 0
@@ -738,20 +751,18 @@ Private Function CheckForPendingTransfer() As Boolean
         Open logFile For Append As #logNum
         Print #logNum, "  RESULT: File too old (stale) - deleting and exiting"
         Close #logNum
-        On Error Resume Next
+        ' NO On Error Resume Next
         Kill tempPathFile
-        On Error GoTo 0
         CheckForPendingTransfer = False
         Exit Function
     End If
     
     ' SAFETY CHECK 2: Verify the source workbook path in the file is valid
-    On Error Resume Next
+    ' NO On Error Resume Next - let errors show
     f = FreeFile
     Open tempPathFile For Input As #f
     Line Input #f, sourceWorkbookPath
     Close #f
-    On Error GoTo 0
     
     logNum = FreeFile
     Open logFile For Append As #logNum
@@ -764,9 +775,8 @@ Private Function CheckForPendingTransfer() As Boolean
         Open logFile For Append As #logNum
         Print #logNum, "  RESULT: Source workbook not found - cleaning up"
         Close #logNum
-        On Error Resume Next
+        ' NO On Error Resume Next
         Kill tempPathFile
-        On Error GoTo 0
         CheckForPendingTransfer = False
         Exit Function
     End If
@@ -891,9 +901,12 @@ End Function
 ' ============================================
 
 Private Sub CreateFolderIfMissing(folderPath As String)
-    On Error Resume Next
+    ' NO On Error Resume Next - report errors
     If Dir(folderPath, vbDirectory) = "" Then
         MkDir folderPath
+        ' Verify folder was created
+        If Dir(folderPath, vbDirectory) = "" Then
+            MsgBox "ERROR: Failed to create folder:" & vbCrLf & folderPath, vbCritical, "Folder Creation Failed"
+        End If
     End If
-    On Error GoTo 0
 End Sub
