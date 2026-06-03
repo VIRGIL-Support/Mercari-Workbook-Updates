@@ -5,7 +5,7 @@ Option Explicit
 ' VERSION MANAGEMENT MODULE
 ' ============================================
 
-Public Const CURRENT_VERSION As String = "1.2"
+Public Const CURRENT_VERSION As String = "1.0"
 Public Const UPDATE_CHECK_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/version.txt"
 Public Const UPDATE_DOWNLOAD_URL As String = "https://raw.githubusercontent.com/VIRGIL-Support/Mercari-Workbook-Updates/main/Mercari_Workbook_Latest.xlsm"
 
@@ -292,9 +292,29 @@ Public Sub TransferMyData()
 
     If Dir(tempPathFile) <> "" Then Kill tempPathFile
 
+    ' ============================================
+    ' ARCHIVING DEBUG - Step by Step
+    ' ============================================
+    
+    MsgBox "DEBUG: About to start archiving..." & vbCrLf & vbCrLf & _
+           "oldFolder = '" & oldFolder & "'" & vbCrLf & _
+           "oldFileName = '" & oldFileName & "'" & vbCrLf & _
+           "Click OK to create Archived folder", vbInformation, "DEBUG: Step 1 of 7"
+    
     Application.StatusBar = "STEP 1: Creating Archived folder..."
-    archiveFolder = oldFolder & "\" & "Archived"
+    archiveFolder = oldFolder & "\Archived"
+    
+    On Error Resume Next
     CreateFolderIfMissing archiveFolder
+    If Err.Number <> 0 Then
+        MsgBox "ERROR creating Archived folder: " & Err.Number & " - " & Err.Description, vbCritical, "DEBUG: Error Step 1"
+        Err.Clear
+    Else
+        MsgBox "DEBUG: Archived folder created (or already exists)" & vbCrLf & _
+               "archiveFolder = '" & archiveFolder & "'" & vbCrLf & _
+               "Click OK to create timestamped subfolder", vbInformation, "DEBUG: Step 2 of 7"
+    End If
+    On Error GoTo ErrorHandler
 
     Application.StatusBar = "STEP 2: Creating timestamped subfolder..."
 
@@ -331,11 +351,24 @@ Public Sub TransferMyData()
                         " at " & Format(hourNum, "00") & "-" & Format(Minute(Now), "00") & "-" & Format(Second(Now), "00") & " " & ampm
 
     archiveSubfolder = archiveFolder & "\" & timestampReadable
+    
+    On Error Resume Next
     CreateFolderIfMissing archiveSubfolder
+    If Err.Number <> 0 Then
+        MsgBox "ERROR creating timestamped subfolder: " & Err.Number & " - " & Err.Description, vbCritical, "DEBUG: Error Step 2"
+        Err.Clear
+    Else
+        MsgBox "DEBUG: Timestamped subfolder created" & vbCrLf & _
+               "archiveSubfolder = '" & archiveSubfolder & "'" & vbCrLf & _
+               "Click OK to copy folders", vbInformation, "DEBUG: Step 3 of 7"
+    End If
+    On Error GoTo ErrorHandler
 
     archivePath = archiveSubfolder & "\" & oldFileName
 
     If COPY_FOLDERS_TO_ARCHIVE Then
+        MsgBox "DEBUG: About to copy project folders" & vbCrLf & _
+               "Click OK to start copying folders", vbInformation, "DEBUG: Step 3 of 7"
         Application.StatusBar = "STEP 3: Copying project folders to archive..."
         Dim folderNames As Variant
         Dim i As Long
@@ -353,6 +386,11 @@ Public Sub TransferMyData()
         Next i
     End If
 
+    MsgBox "DEBUG: About to move old workbook to archive" & vbCrLf & _
+           "sourceWorkbookPath = '" & sourceWorkbookPath & "'" & vbCrLf & _
+           "archivePath = '" & archivePath & "'" & vbCrLf & _
+           "Click OK to move workbook", vbInformation, "DEBUG: Step 4 of 7"
+
     Application.StatusBar = "STEP 4: Moving old workbook to archive..."
     On Error Resume Next
     fso.MoveFile sourceWorkbookPath, archivePath
@@ -362,14 +400,33 @@ Public Sub TransferMyData()
         If Err.Number = 0 Then Kill sourceWorkbookPath
         Err.Clear
     End If
+    If Err.Number <> 0 Then
+        MsgBox "ERROR moving workbook: " & Err.Number & " - " & Err.Description, vbCritical, "DEBUG: Error Step 4"
+        Err.Clear
+    Else
+        MsgBox "DEBUG: Old workbook moved successfully" & vbCrLf & _
+               "Click OK to save new workbook", vbInformation, "DEBUG: Step 5 of 7"
+    End If
     On Error GoTo ErrorHandler
 
     Application.StatusBar = "STEP 5: Saving new workbook to original location..."
     finalPath = oldFolder & "\" & oldFileName
 
+    MsgBox "DEBUG: About to save new workbook" & vbCrLf & _
+           "finalPath = '" & finalPath & "'" & vbCrLf & _
+           "Click OK to save", vbInformation, "DEBUG: Step 5 of 7 - Save"
+    
     Application.DisplayAlerts = False
     ThisWorkbook.SaveAs fileName:=finalPath, FileFormat:=xlOpenXMLWorkbookMacroEnabled
     Application.DisplayAlerts = True
+    
+    If Err.Number <> 0 Then
+        MsgBox "ERROR saving new workbook: " & Err.Number & " - " & Err.Description, vbCritical, "DEBUG: Error Step 5"
+        Err.Clear
+    Else
+        MsgBox "DEBUG: New workbook saved successfully!" & vbCrLf & _
+               "Click OK to finish", vbInformation, "DEBUG: Step 6 of 7"
+    End If
 
     Application.ScreenUpdating = True
     Application.StatusBar = False
@@ -383,14 +440,15 @@ Public Sub TransferMyData()
 
     Application.StatusBar = "Update complete!"
 
-    MsgBox "Welcome to your newly updated workbook!" & vbCrLf & vbCrLf & _
+    MsgBox "DEBUG: Step 7 - SUCCESS!" & vbCrLf & vbCrLf & _
+           "Welcome to your newly updated workbook!" & vbCrLf & vbCrLf & _
            "All of your data has been transferred successfully and everything is right where you left it." & vbCrLf & vbCrLf & _
            "Your previous version has been archived in:" & vbCrLf & _
            archiveSubfolder & vbCrLf & vbCrLf & _
            "The old workbook" & IIf(COPY_FOLDERS_TO_ARCHIVE, " and project folders", "") & _
            " have been safely stored there in case you need them." & vbCrLf & vbCrLf & _
            "If you happen to spot any issues, please email:" & vbCrLf & _
-           "VIRGIL_Support@proton.me", vbInformation, "Update Complete!"
+           "VIRGIL_Support@proton.me", vbInformation, "DEBUG: Step 7 of 7 - SUCCESS!"
 
     Exit Sub
 
@@ -614,3 +672,15 @@ ErrorHandler:
     MsgBox "Backup failed: " & Err.Number & " - " & Err.Description, vbExclamation, "Backup Error"
     CreatePreUpdateBackup = ""
 End Function
+
+' ============================================
+' CREATE FOLDER IF MISSING (Local copy for self-containment)
+' ============================================
+
+Private Sub CreateFolderIfMissing(folderPath As String)
+    On Error Resume Next
+    If Dir(folderPath, vbDirectory) = "" Then
+        MkDir folderPath
+    End If
+    On Error GoTo 0
+End Sub
