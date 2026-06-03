@@ -408,6 +408,8 @@ Public Sub TransferMyData()
     MsgBox "DEBUG: All data transfers completed!" & vbCrLf & vbCrLf & _
            "About to close source workbook...", vbInformation, "DEBUG: Data Transfer Complete"
 
+    On Error GoTo ArchivingErrorHandler
+    
     MsgBox "DEBUG: Step 1 - ScreenUpdating = True", vbInformation, "DEBUG: Step 1"
     Application.ScreenUpdating = True
     
@@ -643,7 +645,14 @@ MoveSuccess:
     Print #logNum, "=== TRANSFER COMPLETE ==="
     Close #logNum
 
+    On Error GoTo 0
     Exit Sub
+
+ArchivingErrorHandler:
+    MsgBox "ARCHIVING ERROR CAUGHT!" & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+           "This happened during the archiving process.", vbCritical, "ARCHIVING ERROR"
+    Resume Next
 
 ErrorHandler:
     ' LOG: Error occurred
