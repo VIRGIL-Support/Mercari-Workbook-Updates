@@ -316,6 +316,7 @@ Public Sub TransferMyData()
     Dim archivePath As String
     Dim finalPath As String
     Dim COPY_FOLDERS_TO_ARCHIVE As Boolean
+    Dim logNum As Integer
 
     COPY_FOLDERS_TO_ARCHIVE = True
 
