@@ -155,11 +155,28 @@ Private Sub DownloadUpdate(ByVal newVersion As String)
     Dim downloadPath As String
     Dim backupPath As String
     Dim fso As Object
+    Dim logFile As String
+    Dim logNum As Integer
+    
+    logFile = Environ$("TEMP") & "\MercariUpdateLog.txt"
+    
+    ' LOG: DownloadUpdate started
+    logNum = FreeFile
+    Open logFile For Output As #logNum
+    Print #logNum, "=== DownloadUpdate started at " & Now & " ==="
+    Print #logNum, "  Current workbook: " & ThisWorkbook.FullName
+    Print #logNum, "  New version: " & newVersion
+    Close #logNum
 
     Set fso = CreateObject("Scripting.FileSystemObject")
 
     Application.StatusBar = "Creating backup..."
     backupPath = CreatePreUpdateBackup()
+    
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "  Backup created: " & backupPath
+    Close #logNum
 
     Application.StatusBar = "Downloading update v" & newVersion & "..."
 
@@ -174,6 +191,10 @@ Private Sub DownloadUpdate(ByVal newVersion As String)
     http.send
 
     If http.Status <> 200 Then
+        logNum = FreeFile
+        Open logFile For Append As #logNum
+        Print #logNum, "  ERROR: HTTP Status " & http.Status
+        Close #logNum
         Application.StatusBar = False
         MsgBox "Failed to download update. Please try again later." & vbCrLf & vbCrLf & _
                "HTTP Status: " & http.Status, vbExclamation, "Download Failed"
@@ -187,6 +208,11 @@ Private Sub DownloadUpdate(ByVal newVersion As String)
     stream.Write http.responseBody
     stream.SaveToFile downloadPath, 2
     stream.Close
+    
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "  Downloaded to: " & downloadPath
+    Close #logNum
 
     Application.StatusBar = False
 
@@ -198,10 +224,30 @@ Private Sub DownloadUpdate(ByVal newVersion As String)
     Print #f, ThisWorkbook.FullName
     Print #f, downloadPath
     Close #f
+    
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "  Temp file created: " & tempPathFile
+    Print #logNum, "  Old workbook path: " & ThisWorkbook.FullName
+    Print #logNum, "  New workbook path: " & downloadPath
+    Close #logNum
 
     UpdateSetting "VERSION", newVersion
     ThisWorkbook.Save
+    
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "  Opening new workbook..."
+    Close #logNum
+    
     Workbooks.Open downloadPath
+    
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "  New workbook opened, closing old workbook"
+    Print #logNum, "=== DownloadUpdate complete ==="
+    Close #logNum
+    
     ThisWorkbook.Close SaveChanges:=False
 
     Exit Sub
@@ -217,6 +263,20 @@ End Sub
 ' ============================================
 
 Public Sub TransferMyData()
+    ' ============================================
+    ' COMPREHENSIVE LOGGING SYSTEM
+    ' ============================================
+    Dim logFile As String
+    logFile = Environ$("TEMP") & "\MercariUpdateLog.txt"
+    
+    ' Clear old log
+    On Error Resume Next
+    Kill logFile
+    On Error GoTo 0
+    
+    ' Helper function to write to log
+    Dim logNum As Integer
+    
     On Error GoTo ErrorHandler
 
     Dim sourceWorkbookPath As String
@@ -236,10 +296,32 @@ Public Sub TransferMyData()
     COPY_FOLDERS_TO_ARCHIVE = True
 
     Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    ' LOG: Starting TransferMyData
+    logNum = FreeFile
+    Open logFile For Output As #logNum
+    Print #logNum, "=== Mercari Update Log - " & Now & " ==="
+    Print #logNum, "STEP 0: TransferMyData STARTED"
+    Print #logNum, "  Current workbook: " & ThisWorkbook.FullName
+    Print #logNum, "  Current version: " & CURRENT_VERSION
+    Close #logNum
 
     tempPathFile = Environ$("TEMP") & "\" & "MercariUpdateSource.txt"
+    
+    ' LOG: Check temp file
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "STEP 0A: Checking temp file: " & tempPathFile
+    Print #logNum, "  Temp file exists: " & (Dir(tempPathFile) <> "")
+    Close #logNum
 
-    If Dir(tempPathFile) = "" Then Exit Sub
+    If Dir(tempPathFile) = "" Then
+        logNum = FreeFile
+        Open logFile For Append As #logNum
+        Print #logNum, "ERROR: Temp file not found - Exiting"
+        Close #logNum
+        Exit Sub
+    End If
 
     On Error Resume Next
     f = FreeFile
@@ -248,14 +330,34 @@ Public Sub TransferMyData()
     Line Input #f, newWorkbookPath
     Close #f
     On Error GoTo ErrorHandler
+    
+    ' LOG: Read temp file
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "STEP 0B: Read temp file contents"
+    Print #logNum, "  sourceWorkbookPath: " & sourceWorkbookPath
+    Print #logNum, "  newWorkbookPath: " & newWorkbookPath
+    Close #logNum
 
     If sourceWorkbookPath = "" Or Dir(sourceWorkbookPath) = "" Then
+        logNum = FreeFile
+        Open logFile For Append As #logNum
+        Print #logNum, "ERROR: Source workbook not found - Exiting"
+        Close #logNum
         Kill tempPathFile
         Exit Sub
     End If
 
     oldFolder = fso.GetParentFolderName(sourceWorkbookPath)
     oldFileName = fso.GetFileName(sourceWorkbookPath)
+    
+    ' LOG: Variables set
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "STEP 0C: Variables set"
+    Print #logNum, "  oldFolder: " & oldFolder
+    Print #logNum, "  oldFileName: " & oldFileName
+    Close #logNum
 
     MsgBox "TransferMyData is starting..." & vbCrLf & vbCrLf & _
            "Old workbook : " & sourceWorkbookPath & vbCrLf & _
@@ -453,6 +555,20 @@ Public Sub TransferMyData()
     Exit Sub
 
 ErrorHandler:
+    ' LOG: Error occurred
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "CRITICAL ERROR at " & Now
+    Print #logNum, "  Error Number: " & Err.Number
+    Print #logNum, "  Error Description: " & Err.Description
+    Print #logNum, "  oldFolder: " & oldFolder
+    Print #logNum, "  oldFileName: " & oldFileName
+    Print #logNum, "  archiveFolder: " & archiveFolder
+    Print #logNum, "  archiveSubfolder: " & archiveSubfolder
+    Print #logNum, "  archivePath: " & archivePath
+    Print #logNum, "=== LOG END ==="
+    Close #logNum
+    
     Application.ScreenUpdating = True
     Application.StatusBar = False
     Application.DisplayAlerts = True
@@ -462,13 +578,8 @@ ErrorHandler:
     If Not sourceWb Is Nothing Then sourceWb.Close SaveChanges:=False
     On Error GoTo 0
 
-    MsgBox "TRANSFER ERROR - Debug Info:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
-           "oldFolder: " & oldFolder & vbCrLf & _
-           "oldFileName: " & oldFileName & vbCrLf & _
-           "archiveFolder: " & archiveFolder & vbCrLf & _
-           "archiveSubfolder: " & archiveSubfolder & vbCrLf & vbCrLf & _
-           "Please contact support: VIRGIL_Support@proton.me", vbCritical, "Transfer Error"
+    MsgBox "TRANSFER ERROR - See log at:" & vbCrLf & logFile & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description, vbCritical, "Transfer Error"
 End Sub
 
 ' Transfer data rows from source workbook sheet to this workbook
@@ -525,8 +636,21 @@ Private Function CheckForPendingTransfer() As Boolean
     Dim f As Integer
     Dim sourceWorkbookPath As String
     Dim fileAge As Double
+    Dim logFile As String
+    Dim logNum As Integer
+    
+    logFile = Environ$("TEMP") & "\MercariUpdateLog.txt"
     
     tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
+    
+    ' LOG: CheckForPendingTransfer started
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "=== CheckForPendingTransfer called at " & Now & " ==="
+    Print #logNum, "  ThisWorkbook: " & ThisWorkbook.FullName
+    Print #logNum, "  tempPathFile: " & tempPathFile
+    Print #logNum, "  Temp file exists: " & (Dir(tempPathFile) <> "")
+    Close #logNum
     
     ' Remove any leftover Transfer My Data button from previous versions
     On Error Resume Next
@@ -535,15 +659,26 @@ Private Function CheckForPendingTransfer() As Boolean
     
     ' If the temp file doesn't exist, no transfer needed
     If Dir(tempPathFile) = "" Then
+        logNum = FreeFile
+        Open logFile For Append As #logNum
+        Print #logNum, "  RESULT: Temp file not found - no transfer needed"
+        Close #logNum
         CheckForPendingTransfer = False
         Exit Function
     End If
     
     ' SAFETY CHECK 1: Verify the temp file is recent (created within last 10 minutes)
-    ' If it's older, it's likely a stale/corrupted file from a failed update
     fileAge = Now - FileDateTime(tempPathFile)
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "  File age (minutes): " & (fileAge * 1440)
+    Close #logNum
+    
     If fileAge > (10 / 1440) Then ' 10 minutes in Excel date format (days)
-        ' File is stale, delete it and skip transfer
+        logNum = FreeFile
+        Open logFile For Append As #logNum
+        Print #logNum, "  RESULT: File too old (stale) - deleting and exiting"
+        Close #logNum
         On Error Resume Next
         Kill tempPathFile
         On Error GoTo 0
@@ -559,8 +694,17 @@ Private Function CheckForPendingTransfer() As Boolean
     Close #f
     On Error GoTo 0
     
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "  Source workbook from temp file: " & sourceWorkbookPath
+    Print #logNum, "  Source exists: " & (Dir(sourceWorkbookPath) <> "")
+    Close #logNum
+    
     If sourceWorkbookPath = "" Or Dir(sourceWorkbookPath) = "" Then
-        ' Source workbook doesn't exist, clean up temp file
+        logNum = FreeFile
+        Open logFile For Append As #logNum
+        Print #logNum, "  RESULT: Source workbook not found - cleaning up"
+        Close #logNum
         On Error Resume Next
         Kill tempPathFile
         On Error GoTo 0
@@ -569,10 +713,20 @@ Private Function CheckForPendingTransfer() As Boolean
     End If
     
     ' All safety checks passed - transfer is valid
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "  RESULT: All checks passed - calling TransferMyData"
+    Close #logNum
+    
     CheckForPendingTransfer = True
     
     ' Auto-run the transfer
     TransferMyData
+    
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "  TransferMyData completed at " & Now
+    Close #logNum
 End Function
 
 ' ============================================
