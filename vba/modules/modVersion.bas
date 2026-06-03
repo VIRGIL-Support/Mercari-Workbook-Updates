@@ -353,14 +353,44 @@ Public Sub TransferMyData()
     Application.StatusBar = "Transferring LOOKUPS..."
     TransferSheetData sourceWb, "LOOKUPS"
 
-    LogEntry logFile, "STEP 3: Data transfer complete. Closing source workbook..."
+    LogEntry logFile, "STEP 3: Data transfer complete. About to close source workbook..."
+    LogEntry logFile, "  sourceWb.Name = " & sourceWb.Name
+    LogEntry logFile, "  sourceWb.ReadOnly = " & sourceWb.ReadOnly
+    LogEntry logFile, "  Application.EnableEvents currently = " & Application.EnableEvents
 
     ' === CLOSE SOURCE WORKBOOK SAFELY ===
-    ' Disable events FIRST to prevent BackupWorkbookBeforeClose from firing
+    LogEntry logFile, "  3A: Setting EnableEvents=False"
     Application.EnableEvents = False
+    LogEntry logFile, "  3B: Setting DisplayAlerts=False"
     Application.DisplayAlerts = False
+    LogEntry logFile, "  3C: Setting sourceWb.Saved=True"
     sourceWb.Saved = True
+    LogEntry logFile, "  3D: Calling sourceWb.Close SaveChanges:=False"
+    
+    ' Write directly to log (not via LogEntry) in case something breaks
+    Dim preCloseLog As Integer
+    preCloseLog = FreeFile
+    Open logFile For Append As #preCloseLog
+    Print #preCloseLog, Format(Now, "hh:nn:ss") & "  3D: About to call sourceWb.Close..."
+    Close #preCloseLog
+    
+    On Error Resume Next
     sourceWb.Close SaveChanges:=False
+    
+    ' Immediately log result - direct file write (most reliable)
+    Dim postCloseLog As Integer
+    postCloseLog = FreeFile
+    Open logFile For Append As #postCloseLog
+    If Err.Number <> 0 Then
+        Print #postCloseLog, Format(Now, "hh:nn:ss") & "  3D-ERROR: " & Err.Number & " - " & Err.Description
+    Else
+        Print #postCloseLog, Format(Now, "hh:nn:ss") & "  3D: sourceWb.Close completed OK"
+    End If
+    Print #postCloseLog, Format(Now, "hh:nn:ss") & "  3E: Code is still running after close!"
+    Close #postCloseLog
+    Err.Clear
+    On Error GoTo ErrorHandler
+    
     Application.EnableEvents = True
     Application.DisplayAlerts = True
     Application.ScreenUpdating = True
@@ -368,17 +398,22 @@ Public Sub TransferMyData()
     Set sourceWb = Nothing
     DoEvents
 
-    LogEntry logFile, "STEP 4: Source workbook closed. Deleting temp file..."
+    LogEntry logFile, "STEP 4: Source workbook closed successfully. Deleting temp file..."
+    LogEntry logFile, "  tempPathFile exists: " & (Dir(tempPathFile) <> "")
 
     If Dir(tempPathFile) <> "" Then Kill tempPathFile
+    LogEntry logFile, "  Temp file deleted."
 
     ' ============================================
     ' ARCHIVING SECTION
     ' ============================================
     LogEntry logFile, "STEP 5: Creating Archived folder..."
+    LogEntry logFile, "  oldFolder = " & oldFolder
 
     archiveFolder = oldFolder & "\Archived"
+    LogEntry logFile, "  archiveFolder = " & archiveFolder
     CreateFolderIfMissing archiveFolder
+    LogEntry logFile, "  Archived folder exists after create: " & (Dir(archiveFolder, vbDirectory) <> "")
 
     Dim timestampReadable As String
     Dim ampm As String
