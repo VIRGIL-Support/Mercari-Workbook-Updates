@@ -152,84 +152,65 @@ End Function
 
 Private Sub DownloadUpdate(ByVal newVersion As String)
     On Error GoTo ErrorHandler
-    
-    Dim updateFolder As String
+
     Dim downloadPath As String
     Dim backupPath As String
     Dim fso As Object
-    
+
     Set fso = CreateObject("Scripting.FileSystemObject")
-    
-    ' Create backup silently
+
     Application.StatusBar = "Creating backup..."
     backupPath = CreatePreUpdateBackup()
-    
-    ' Create Updates folder
-    updateFolder = ThisWorkbook.Path & "\Updates"
-    CreateFolderIfMissing updateFolder
-    
-    ' Download the updated workbook
+
     Application.StatusBar = "Downloading update v" & newVersion & "..."
-    
-    downloadPath = updateFolder & "\Mercari_Workbook_v" & newVersion & ".xlsm"
-    
-    ' Download using XMLHTTP with binary stream
+
+    Dim baseName As String
+    baseName = Left$(ThisWorkbook.Name, InStrRev(ThisWorkbook.Name, ".") - 1)
+    downloadPath = ThisWorkbook.Path & "\" & baseName & "_v" & newVersion & ".xlsm"
+
     Dim http As Object
     Set http = CreateObject("MSXML2.XMLHTTP")
     http.Open "GET", UPDATE_DOWNLOAD_URL, False
     http.setRequestHeader "Cache-Control", "no-cache"
     http.send
-    
+
     If http.Status <> 200 Then
         Application.StatusBar = False
         MsgBox "Failed to download update. Please try again later." & vbCrLf & vbCrLf & _
                "HTTP Status: " & http.Status, vbExclamation, "Download Failed"
         Exit Sub
     End If
-    
-    ' Save the downloaded file
+
     Dim stream As Object
     Set stream = CreateObject("ADODB.Stream")
-    stream.Type = 1 ' Binary
+    stream.Type = 1
     stream.Open
     stream.Write http.responseBody
-    stream.SaveToFile downloadPath, 2 ' 2 = overwrite
+    stream.SaveToFile downloadPath, 2
     stream.Close
-    
+
     Application.StatusBar = False
-    
-    ' Save the old workbook path so the new workbook knows where to find user data
-    Dim oldWorkbookPath As String
-    oldWorkbookPath = ThisWorkbook.FullName
-    
-    ' Update version in settings so we don't prompt again
-    UpdateSetting "VERSION", newVersion
-    
-    ' Save old workbook path to a temp file so new workbook can find it
+
     Dim tempPathFile As String
-    tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
+    tempPathFile = Environ$("TEMP") & "\" & "MercariUpdateSource.txt"
     Dim f As Integer
     f = FreeFile
     Open tempPathFile For Output As #f
-    Print #f, oldWorkbookPath
+    Print #f, ThisWorkbook.FullName
+    Print #f, downloadPath
     Close #f
-    
-    ' Save current workbook
+
+    UpdateSetting "VERSION", newVersion
     ThisWorkbook.Save
-    
-    ' Open the new workbook
     Workbooks.Open downloadPath
-    
-    ' Close the old workbook
     ThisWorkbook.Close SaveChanges:=False
-    
+
     Exit Sub
-    
+
 ErrorHandler:
     Application.StatusBar = False
     MsgBox "UPDATE DEBUG - Error " & Err.Number & ": " & Err.Description & vbCrLf & _
            "Line that failed will be shown if you click Debug", vbCritical, "Update Error"
-    ' Resume Next ' Uncomment for debugging to see where it fails
 End Sub
 
 ' ============================================
@@ -238,8 +219,9 @@ End Sub
 
 Public Sub TransferMyData()
     On Error GoTo ErrorHandler
-    
+
     Dim sourceWorkbookPath As String
+    Dim newWorkbookPath As String
     Dim tempPathFile As String
     Dim sourceWb As Workbook
     Dim f As Integer
@@ -249,140 +231,94 @@ Public Sub TransferMyData()
     Dim archiveFolder As String
     Dim archiveSubfolder As String
     Dim archivePath As String
-    Dim newFilePath As String
+    Dim finalPath As String
     Dim COPY_FOLDERS_TO_ARCHIVE As Boolean
-    
-    ' SET THIS TO TRUE IF YOU WANT FOLDERS COPIED TO ARCHIVE
-    ' SET TO FALSE IF LINKS DON'T REQUIRE IT
+
     COPY_FOLDERS_TO_ARCHIVE = True
-    
+
     Set fso = CreateObject("Scripting.FileSystemObject")
-    
-    ' Try to read the old workbook path from temp file
-    tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
-    
-    If Dir(tempPathFile) = "" Then
-        ' No temp file - no transfer needed, just exit silently
+
+    tempPathFile = Environ$("TEMP") & "\" & "MercariUpdateSource.txt"
+
+    If Dir(tempPathFile) = "" Then Exit Sub
+
+    On Error Resume Next
+    f = FreeFile
+    Open tempPathFile For Input As #f
+    Line Input #f, sourceWorkbookPath
+    Line Input #f, newWorkbookPath
+    Close #f
+    On Error GoTo ErrorHandler
+
+    If sourceWorkbookPath = "" Or Dir(sourceWorkbookPath) = "" Then
+        Kill tempPathFile
         Exit Sub
-    Else
-        ' Read path from temp file
-        f = FreeFile
-        Open tempPathFile For Input As #f
-        Line Input #f, sourceWorkbookPath
-        Close #f
-        
-        ' Verify file exists - if not, clean up temp file and exit
-        If Dir(sourceWorkbookPath) = "" Then
-            Kill tempPathFile
-            Exit Sub
-        End If
     End If
-    
-    ' DEBUG: Confirm transfer is starting
-    MsgBox "TransferMyData is starting..." & vbCrLf & vbCrLf & _
-           "Source: " & sourceWorkbookPath & vbCrLf & _
-           "Click OK to begin data transfer.", vbInformation, "Update Transfer Starting"
-    
-    ' -----------------------------------------------------------------------
-    ' IMPORTANT: Capture oldFolder and oldFileName from the temp file path
-    ' BEFORE doing anything else.  ThisWorkbook.Path at this point points to
-    ' the \Updates subfolder (where the new workbook was downloaded), NOT the
-    ' original folder.  We must derive the original location from the path
-    ' stored in the temp file.
-    ' -----------------------------------------------------------------------
-    oldFolder = fso.GetParentFolderName(sourceWorkbookPath)
+
+    oldFolder   = fso.GetParentFolderName(sourceWorkbookPath)
     oldFileName = fso.GetFileName(sourceWorkbookPath)
-    
-    ' Also capture the Updates folder path now, while we still know where it is
-    Dim updatesFolder As String
-    updatesFolder = ThisWorkbook.Path   ' This IS the \Updates folder right now
-    
-    Application.StatusBar = "TransferMyData: Opening source workbook..."
+
+    MsgBox "TransferMyData is starting..." & vbCrLf & vbCrLf & _
+           "Old workbook : " & sourceWorkbookPath & vbCrLf & _
+           "New workbook : " & newWorkbookPath & vbCrLf & _
+           "Target folder: " & oldFolder & vbCrLf & vbCrLf & _
+           "Click OK to begin data transfer.", vbInformation, "Update Transfer Starting"
+
+    Application.StatusBar = "Opening source workbook..."
     Application.ScreenUpdating = False
-    
-    ' Open the old workbook (read-only)
+
     Set sourceWb = Workbooks.Open(sourceWorkbookPath, ReadOnly:=True)
-    
-    ' Transfer INVENTORY data
+
     Application.StatusBar = "Transferring INVENTORY data..."
     TransferSheetData sourceWb, WS_INVENTORY
-    
-    ' Transfer SOLD ITEMS data
+
     Application.StatusBar = "Transferring SOLD ITEMS data..."
     TransferSheetData sourceWb, "SOLD ITEMS"
-    
-    ' Transfer SETTINGS data
+
     Application.StatusBar = "Transferring SETTINGS..."
     TransferSheetData sourceWb, "SETTINGS"
-    
-    ' Transfer LOOKUPS data (preserve custom dropdowns)
+
     Application.StatusBar = "Transferring LOOKUPS..."
     TransferSheetData sourceWb, "LOOKUPS"
-    
-    ' Close the source workbook and give Windows a moment to fully release it
+
     Application.ScreenUpdating = True
     DoEvents
-    
+
     On Error Resume Next
     sourceWb.Close SaveChanges:=False
     On Error GoTo ErrorHandler
-    
+
     Set sourceWb = Nothing
-    DoEvents   ' Let Excel/Windows finish releasing the file handle
-    
-    ' Clean up temp file
+    DoEvents
+
     If Dir(tempPathFile) <> "" Then Kill tempPathFile
-    
-    ' ============================================
-    ' STEP 1: SAVE NEW WORKBOOK TO ORIGINAL LOCATION
-    ' (Do this BEFORE archiving so the old file is
-    '  fully closed and unlocked when we try to move it)
-    ' ============================================
-    
-    Application.StatusBar = "STEP 1: Saving new workbook to original location..."
-    
-    newFilePath = oldFolder & "\" & oldFileName
-    
-    Application.DisplayAlerts = False
-    ThisWorkbook.SaveAs fileName:=newFilePath, FileFormat:=xlOpenXMLWorkbookMacroEnabled
-    Application.DisplayAlerts = True
-    
-    ' ============================================
-    ' ARCHIVE OLD WORKBOOK AND FOLDERS
-    ' ============================================
-    
-    Application.StatusBar = "STEP 2: Creating Archive folder..."
-    
-    ' Create Archive folder inside the original folder
-    archiveFolder = oldFolder & "\Archived"
+
+    Application.StatusBar = "STEP 1: Creating Archived folder..."
+    archiveFolder = oldFolder & "\" & "Archived"
     CreateFolderIfMissing archiveFolder
-    
-    Application.StatusBar = "STEP 3: Creating timestamped subfolder..."
-    
-    ' Create timestamped subfolder with human-readable format
-    ' Format: "Archived 02-JUN-26 at 01-23-32 pm"
+
+    Application.StatusBar = "STEP 2: Creating timestamped subfolder..."
+
     Dim timestampReadable As String
-    Dim timestampFile As String
     Dim ampm As String
     Dim hourNum As Integer
     Dim monthName As String
-    
-    ' Get month abbreviation
+
     Select Case Month(Now)
-        Case 1: monthName = "JAN"
-        Case 2: monthName = "FEB"
-        Case 3: monthName = "MAR"
-        Case 4: monthName = "APR"
-        Case 5: monthName = "MAY"
-        Case 6: monthName = "JUN"
-        Case 7: monthName = "JUL"
-        Case 8: monthName = "AUG"
-        Case 9: monthName = "SEP"
+        Case 1:  monthName = "JAN"
+        Case 2:  monthName = "FEB"
+        Case 3:  monthName = "MAR"
+        Case 4:  monthName = "APR"
+        Case 5:  monthName = "MAY"
+        Case 6:  monthName = "JUN"
+        Case 7:  monthName = "JUL"
+        Case 8:  monthName = "AUG"
+        Case 9:  monthName = "SEP"
         Case 10: monthName = "OCT"
         Case 11: monthName = "NOV"
         Case 12: monthName = "DEC"
     End Select
-    
+
     hourNum = Hour(Now)
     If hourNum >= 12 Then
         ampm = "pm"
@@ -391,36 +327,25 @@ Public Sub TransferMyData()
         ampm = "am"
         If hourNum = 0 Then hourNum = 12
     End If
-    
-    ' Format: "Archived 02-JUN-26 at 01-23-32 pm"
+
     timestampReadable = "Archived " & Format(Day(Now), "00") & "-" & monthName & "-" & Right(Year(Now), 2) & _
                         " at " & Format(hourNum, "00") & "-" & Format(Minute(Now), "00") & "-" & Format(Second(Now), "00") & " " & ampm
-    
-    ' File safe version (kept for reference but folder name uses human-readable form)
-    timestampFile = Format(Now, "yyyy-mm-dd_hh-nn-ss")
-    
+
     archiveSubfolder = archiveFolder & "\" & timestampReadable
     CreateFolderIfMissing archiveSubfolder
-    
-    ' Archive path for the old workbook
+
     archivePath = archiveSubfolder & "\" & oldFileName
-    
-    ' IF ENABLED: Copy the 5 project folders to archive subfolder BEFORE moving workbook
+
     If COPY_FOLDERS_TO_ARCHIVE Then
-        Application.StatusBar = "STEP 4: Copying project folders to archive..."
-        
+        Application.StatusBar = "STEP 3: Copying project folders to archive..."
         Dim folderNames As Variant
         Dim i As Long
         Dim sourceFolder As String
         Dim destFolder As String
-        
-        ' List of folders to archive
         folderNames = Array("1 READY TO LIST", "2 DESCRIPTION FILES", "3 SOLD", "4 Backups", "5 Logs")
-        
         For i = LBound(folderNames) To UBound(folderNames)
             sourceFolder = oldFolder & "\" & folderNames(i)
-            destFolder = archiveSubfolder & "\" & folderNames(i)
-            
+            destFolder   = archiveSubfolder & "\" & folderNames(i)
             If fso.FolderExists(sourceFolder) Then
                 On Error Resume Next
                 fso.CopyFolder sourceFolder, destFolder, True
@@ -428,47 +353,37 @@ Public Sub TransferMyData()
             End If
         Next i
     End If
-    
-    ' Move the old workbook to the archive subfolder
-    ' (Safe to do now: source file is closed and new workbook has already been SaveAs'd)
-    Application.StatusBar = "STEP 5: Moving old workbook to archive..."
+
+    Application.StatusBar = "STEP 4: Moving old workbook to archive..."
     On Error Resume Next
     fso.MoveFile sourceWorkbookPath, archivePath
     If Err.Number <> 0 Then
-        ' MoveFile failed - fall back to Copy + Delete
         Err.Clear
         fso.CopyFile sourceWorkbookPath, archivePath, True
         If Err.Number = 0 Then Kill sourceWorkbookPath
         Err.Clear
     End If
     On Error GoTo ErrorHandler
-    
-    ' ============================================
-    ' CLEANUP
-    ' ============================================
-    
-    Application.StatusBar = "STEP 6: Cleaning up Updates folder..."
-    
-    ' Delete the Updates folder (temporary download location captured earlier)
-    On Error Resume Next
-    If fso.FolderExists(updatesFolder) Then fso.DeleteFolder updatesFolder, True
-    On Error GoTo ErrorHandler
-    
+
+    Application.StatusBar = "STEP 5: Saving new workbook to original location..."
+    finalPath = oldFolder & "\" & oldFileName
+
+    Application.DisplayAlerts = False
+    ThisWorkbook.SaveAs fileName:=finalPath, FileFormat:=xlOpenXMLWorkbookMacroEnabled
+    Application.DisplayAlerts = True
+
     Application.ScreenUpdating = True
     Application.StatusBar = False
-    
-    ' Save again to ensure everything is written
+
     ThisWorkbook.Save
-    
-    ' Activate the INVENTORY sheet so user is ready to go
+
     On Error Resume Next
     ThisWorkbook.Worksheets(WS_INVENTORY).Activate
     ThisWorkbook.Worksheets(WS_INVENTORY).Range("A1").Select
     On Error GoTo 0
-    
-    ' STEP 7: Show success message
-    Application.StatusBar = "STEP 7: Update complete!"
-    
+
+    Application.StatusBar = "Update complete!"
+
     MsgBox "Welcome to your newly updated workbook!" & vbCrLf & vbCrLf & _
            "All of your data has been transferred successfully and everything is right where you left it." & vbCrLf & vbCrLf & _
            "Your previous version has been archived in:" & vbCrLf & _
@@ -477,19 +392,19 @@ Public Sub TransferMyData()
            " have been safely stored there in case you need them." & vbCrLf & vbCrLf & _
            "If you happen to spot any issues, please email:" & vbCrLf & _
            "VIRGIL_Support@proton.me", vbInformation, "Update Complete!"
-    
+
     Exit Sub
-    
+
 ErrorHandler:
     Application.ScreenUpdating = True
     Application.StatusBar = False
     Application.DisplayAlerts = True
     DoEvents
-    
+
     On Error Resume Next
     If Not sourceWb Is Nothing Then sourceWb.Close SaveChanges:=False
     On Error GoTo 0
-    
+
     MsgBox "TRANSFER ERROR - Debug Info:" & vbCrLf & vbCrLf & _
            "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
            "oldFolder: " & oldFolder & vbCrLf & _
