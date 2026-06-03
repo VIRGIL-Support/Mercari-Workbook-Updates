@@ -357,68 +357,152 @@ Public Sub TransferMyData()
     Application.StatusBar = "Transferring LOOKUPS..."
     TransferSheetData sourceWb, "LOOKUPS"
 
-    LogEntry logFile, "STEP 3: Data transfer complete. About to close source workbook..."
-    LogEntry logFile, "  sourceWb.Name = " & sourceWb.Name
-    LogEntry logFile, "  sourceWb.ReadOnly = " & sourceWb.ReadOnly
-    LogEntry logFile, "  Application.EnableEvents currently = " & Application.EnableEvents
+    LogEntry logFile, "STEP 3: Data transfer complete. Saving source info for deferred close..."
 
-    ' === CLOSE SOURCE WORKBOOK SAFELY ===
-    LogEntry logFile, "  3A: Setting EnableEvents=False"
-    Application.EnableEvents = False
-    LogEntry logFile, "  3B: Setting DisplayAlerts=False"
-    Application.DisplayAlerts = False
-    LogEntry logFile, "  3C: Setting sourceWb.Saved=True"
-    sourceWb.Saved = True
-    LogEntry logFile, "  3D: Calling sourceWb.Close SaveChanges:=False"
-    
-    ' Write directly to log (not via LogEntry) in case something breaks
-    Dim preCloseLog As Integer
-    preCloseLog = FreeFile
-    Open logFile For Append As #preCloseLog
-    Print #preCloseLog, Format(Now, "hh:nn:ss") & "  3D: About to call sourceWb.Close..."
-    Close #preCloseLog
-    
-    On Error Resume Next
-    sourceWb.Close SaveChanges:=False
-    
-    ' Immediately log result - direct file write (most reliable)
-    Dim postCloseLog As Integer
-    postCloseLog = FreeFile
-    Open logFile For Append As #postCloseLog
-    If Err.Number <> 0 Then
-        Print #postCloseLog, Format(Now, "hh:nn:ss") & "  3D-ERROR: " & Err.Number & " - " & Err.Description
-    Else
-        Print #postCloseLog, Format(Now, "hh:nn:ss") & "  3D: sourceWb.Close completed OK"
-    End If
-    Print #postCloseLog, Format(Now, "hh:nn:ss") & "  3E: Code is still running after close!"
-    Close #postCloseLog
-    Err.Clear
-    On Error GoTo ErrorHandler
-    
-    Application.EnableEvents = True
-    Application.DisplayAlerts = True
+    ' Store info needed for Phase 2 (close + archive) in a second temp file
+    Dim phase2File As String
+    phase2File = Environ$("TEMP") & "\MercariUpdatePhase2.txt"
+    Dim p2 As Integer
+    p2 = FreeFile
+    Open phase2File For Output As #p2
+    Print #p2, sourceWb.Name          ' Line 1: source workbook name (to close it)
+    Print #p2, sourceWorkbookPath     ' Line 2: source workbook full path (to archive it)
+    Print #p2, oldFolder              ' Line 3: old folder path
+    Print #p2, oldFileName            ' Line 4: old file name
+    Close #p2
+
+    LogEntry logFile, "  Phase 2 file written. Scheduling deferred close+archive via OnTime..."
+
+    ' Schedule Phase 2 to run in 1 second (new execution context)
+    Application.OnTime Now + TimeSerial(0, 0, 1), "CompleteUpdatePhase2"
+
+    LogEntry logFile, "  OnTime scheduled. TransferMyData Phase 1 exiting cleanly."
+
     Application.ScreenUpdating = True
+    Application.StatusBar = "Finalizing update..."
 
-    Set sourceWb = Nothing
+    Exit Sub
+
+ErrorHandler:
+    ' LOG: Error occurred
+    logNum = FreeFile
+    Open logFile For Append As #logNum
+    Print #logNum, "CRITICAL ERROR at " & Now
+    Print #logNum, "  Error Number: " & Err.Number
+    Print #logNum, "  Error Description: " & Err.Description
+    Print #logNum, "  oldFolder: " & oldFolder
+    Print #logNum, "  oldFileName: " & oldFileName
+    Print #logNum, "  archiveFolder: " & archiveFolder
+    Print #logNum, "  archiveSubfolder: " & archiveSubfolder
+    Print #logNum, "  archivePath: " & archivePath
+    Print #logNum, "=== LOG END ==="
+    Close #logNum
+
+    Application.ScreenUpdating = True
+    Application.StatusBar = False
+    Application.DisplayAlerts = True
+    Application.EnableEvents = True
     DoEvents
 
-    LogEntry logFile, "STEP 4: Source workbook closed successfully. Deleting temp file..."
-    LogEntry logFile, "  tempPathFile exists: " & (Dir(tempPathFile) <> "")
+    On Error Resume Next
+    If Not sourceWb Is Nothing Then sourceWb.Close SaveChanges:=False
+    On Error GoTo 0
 
-    If Dir(tempPathFile) <> "" Then Kill tempPathFile
-    LogEntry logFile, "  Temp file deleted."
+    MsgBox "Update transfer encountered an error." & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+           "See log at: " & logFile, vbCritical, "Transfer Error"
+End Sub
 
-    ' ============================================
-    ' ARCHIVING SECTION
-    ' ============================================
-    LogEntry logFile, "STEP 5: Creating Archived folder..."
+' ============================================
+' PHASE 2: CLOSE SOURCE + ARCHIVE (runs via OnTime in new execution context)
+' ============================================
+
+Public Sub CompleteUpdatePhase2()
+    Dim logFile As String
+    Dim phase2File As String
+    Dim sourceWbName As String
+    Dim sourceWorkbookPath As String
+    Dim oldFolder As String
+    Dim oldFileName As String
+    Dim archiveFolder As String
+    Dim archiveSubfolder As String
+    Dim archivePath As String
+    Dim finalPath As String
+    Dim fso As Object
+    Dim f As Integer
+    Dim wb As Workbook
+    Dim COPY_FOLDERS_TO_ARCHIVE As Boolean
+
+    logFile = Environ$("TEMP") & "\MercariUpdateLog.txt"
+    phase2File = Environ$("TEMP") & "\MercariUpdatePhase2.txt"
+    COPY_FOLDERS_TO_ARCHIVE = True
+
+    On Error GoTo Phase2Error
+
+    LogEntry logFile, "=== PHASE 2 STARTED ==="
+
+    ' Read the phase 2 info file
+    If Dir(phase2File) = "" Then
+        LogEntry logFile, "ERROR: Phase 2 file not found!"
+        Exit Sub
+    End If
+
+    f = FreeFile
+    Open phase2File For Input As #f
+    Line Input #f, sourceWbName
+    Line Input #f, sourceWorkbookPath
+    Line Input #f, oldFolder
+    Line Input #f, oldFileName
+    Close #f
+
+    LogEntry logFile, "  sourceWbName = " & sourceWbName
+    LogEntry logFile, "  sourceWorkbookPath = " & sourceWorkbookPath
     LogEntry logFile, "  oldFolder = " & oldFolder
+    LogEntry logFile, "  oldFileName = " & oldFileName
+
+    Set fso = CreateObject("Scripting.FileSystemObject")
+
+    ' --- STEP A: Close the source workbook ---
+    LogEntry logFile, "PHASE2 STEP A: Closing source workbook..."
+
+    Application.EnableEvents = False
+    Application.DisplayAlerts = False
+
+    ' Find and close the source workbook
+    On Error Resume Next
+    Set wb = Workbooks(sourceWbName)
+    If Not wb Is Nothing Then
+        wb.Saved = True
+        wb.Close SaveChanges:=False
+        LogEntry logFile, "  Source workbook closed."
+    Else
+        LogEntry logFile, "  Source workbook not found in Workbooks collection (may already be closed)."
+    End If
+    Set wb = Nothing
+    Err.Clear
+    On Error GoTo Phase2Error
+
+    Application.EnableEvents = True
+    Application.DisplayAlerts = True
+    DoEvents
+
+    ' Delete temp files
+    On Error Resume Next
+    Dim tempPathFile As String
+    tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
+    If Dir(tempPathFile) <> "" Then Kill tempPathFile
+    If Dir(phase2File) <> "" Then Kill phase2File
+    On Error GoTo Phase2Error
+
+    LogEntry logFile, "  Temp files deleted."
+
+    ' --- STEP B: Create Archived folder ---
+    LogEntry logFile, "PHASE2 STEP B: Creating Archived folder..."
 
     archiveFolder = oldFolder & "\Archived"
-    LogEntry logFile, "  archiveFolder = " & archiveFolder
     CreateFolderIfMissing archiveFolder
-    LogEntry logFile, "  Archived folder exists after create: " & (Dir(archiveFolder, vbDirectory) <> "")
 
+    ' Build timestamped subfolder name
     Dim timestampReadable As String
     Dim ampm As String
     Dim hourNum As Integer
@@ -454,12 +538,13 @@ Public Sub TransferMyData()
     archiveSubfolder = archiveFolder & "\" & timestampReadable
     CreateFolderIfMissing archiveSubfolder
 
-    LogEntry logFile, "STEP 6: Archive subfolder=" & archiveSubfolder
+    LogEntry logFile, "PHASE2 STEP C: Archive subfolder = " & archiveSubfolder
 
     archivePath = archiveSubfolder & "\" & oldFileName
 
-    ' Copy project folders to archive
+    ' --- STEP C: Copy project folders to archive ---
     If COPY_FOLDERS_TO_ARCHIVE Then
+        LogEntry logFile, "PHASE2 STEP D: Copying project folders..."
         Application.StatusBar = "Copying project folders to archive..."
         Dim folderNames As Variant
         Dim i As Long
@@ -472,38 +557,38 @@ Public Sub TransferMyData()
             If fso.FolderExists(srcFldr) Then
                 On Error Resume Next
                 fso.CopyFolder srcFldr, destFldr, True
-                On Error GoTo ErrorHandler
+                On Error GoTo Phase2Error
             End If
         Next i
     End If
 
-    ' Move (or copy+delete) the old workbook to the archive
+    ' --- STEP D: Move old workbook to archive ---
+    LogEntry logFile, "PHASE2 STEP E: Moving old workbook to archive..."
     Application.StatusBar = "Archiving old workbook..."
-    LogEntry logFile, "STEP 7: Moving old workbook to archive..."
 
     On Error Resume Next
     fso.MoveFile sourceWorkbookPath, archivePath
     If Err.Number <> 0 Then
+        LogEntry logFile, "  MoveFile failed (" & Err.Number & "), trying CopyFile+Kill..."
         Err.Clear
         fso.CopyFile sourceWorkbookPath, archivePath, True
         If Err.Number = 0 Then
             Kill sourceWorkbookPath
+        Else
+            LogEntry logFile, "  CopyFile also failed: " & Err.Number & " - " & Err.Description
         End If
     End If
-    On Error GoTo ErrorHandler
+    Err.Clear
+    On Error GoTo Phase2Error
 
-    ' Save new workbook to the original location/name
-    Application.StatusBar = "Saving updated workbook..."
+    ' --- STEP E: Save new workbook to original location ---
     finalPath = oldFolder & "\" & oldFileName
+    LogEntry logFile, "PHASE2 STEP F: Saving new workbook as " & finalPath
 
-    LogEntry logFile, "STEP 8: Saving new workbook as " & finalPath
-
+    Application.StatusBar = "Saving updated workbook..."
     Application.DisplayAlerts = False
     ThisWorkbook.SaveAs fileName:=finalPath, FileFormat:=xlOpenXMLWorkbookMacroEnabled
     Application.DisplayAlerts = True
-
-    Application.ScreenUpdating = True
-    Application.StatusBar = False
 
     ThisWorkbook.Save
 
@@ -512,7 +597,8 @@ Public Sub TransferMyData()
     ThisWorkbook.Worksheets(WS_INVENTORY).Range("A1").Select
     On Error GoTo 0
 
-    Application.StatusBar = "Update complete!"
+    Application.ScreenUpdating = True
+    Application.StatusBar = False
 
     LogEntry logFile, "SUCCESS: Update completed at " & Now & " | Archived to: " & archiveSubfolder
 
@@ -527,34 +613,15 @@ Public Sub TransferMyData()
 
     Exit Sub
 
-ErrorHandler:
-    ' LOG: Error occurred
-    logNum = FreeFile
-    Open logFile For Append As #logNum
-    Print #logNum, "CRITICAL ERROR at " & Now
-    Print #logNum, "  Error Number: " & Err.Number
-    Print #logNum, "  Error Description: " & Err.Description
-    Print #logNum, "  oldFolder: " & oldFolder
-    Print #logNum, "  oldFileName: " & oldFileName
-    Print #logNum, "  archiveFolder: " & archiveFolder
-    Print #logNum, "  archiveSubfolder: " & archiveSubfolder
-    Print #logNum, "  archivePath: " & archivePath
-    Print #logNum, "=== LOG END ==="
-    Close #logNum
-
+Phase2Error:
+    LogEntry logFile, "PHASE 2 ERROR: " & Err.Number & " - " & Err.Description
     Application.ScreenUpdating = True
     Application.StatusBar = False
     Application.DisplayAlerts = True
     Application.EnableEvents = True
-    DoEvents
-
-    On Error Resume Next
-    If Not sourceWb Is Nothing Then sourceWb.Close SaveChanges:=False
-    On Error GoTo 0
-
-    MsgBox "Update transfer encountered an error." & vbCrLf & vbCrLf & _
+    MsgBox "Update Phase 2 encountered an error." & vbCrLf & vbCrLf & _
            "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
-           "See log at: " & logFile, vbCritical, "Transfer Error"
+           "See log at: " & logFile, vbCritical, "Update Error"
 End Sub
 
 ' Transfer data rows from source workbook sheet to this workbook
