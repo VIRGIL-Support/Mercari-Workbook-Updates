@@ -13,18 +13,35 @@ Public Sub CheckForUpdatesOnOpen()
     Dim checkResult As String
     Dim latestVersion As String
     Dim userChoice As VbMsgBoxResult
+    Dim tempPathFile As String
+    
+    ' DEBUG: Confirm this code is running in new workbook
+    MsgBox "DEBUG: CheckForUpdatesOnOpen is running" & vbCrLf & vbCrLf & _
+           "Workbook: " & ThisWorkbook.Name & vbCrLf & _
+           "Version: " & CURRENT_VERSION & vbCrLf & vbCrLf & _
+           "Click OK to continue...", vbInformation, "DEBUG: New Workbook Opened"
+    
+    tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
+    
+    ' CRITICAL: Check for pending transfer BEFORE calling ResetUpdateState
+    ' If temp file exists, this workbook was just downloaded - handle transfer immediately
+    If Dir(tempPathFile) <> "" Then
+        ' Check if it's a fresh transfer (file age < 2 minutes)
+        Dim fileAge As Double
+        fileAge = Now - FileDateTime(tempPathFile)
+        fileAge = fileAge * 1440 ' Convert to minutes
+        
+        If fileAge < 2 Then
+            ' Fresh transfer - skip ResetUpdateState entirely to preserve temp file
+            CheckForPendingTransfer
+            Exit Sub
+        End If
+        ' If file is old (> 2 min), it's stale - let ResetUpdateState clean it up
+    End If
     
     ' SAFETY FIRST: Reset any stuck update state from previous sessions
+    ' (Only runs if no fresh temp file exists)
     ResetUpdateState
-    
-    ' SKIP UPDATE CHECK IF A TRANSFER IS PENDING
-    ' If the temp file exists, this workbook was just downloaded as an update
-    Dim tempPathFile As String
-    tempPathFile = Environ$("TEMP") & "\MercariUpdateSource.txt"
-    If Dir(tempPathFile) <> "" Then
-        CheckForPendingTransfer
-        Exit Sub
-    End If
     
     ' Check if user wants to auto-check (stored in settings)
     If GetSettingValue("AUTO_CHECK_UPDATES") = "NO" Then Exit Sub
