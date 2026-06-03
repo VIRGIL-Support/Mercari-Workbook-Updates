@@ -338,8 +338,12 @@ Public Sub TransferMyData()
 
     Application.StatusBar = "Opening source workbook..."
     Application.ScreenUpdating = False
-
+    
+    ' CRITICAL: Disable events before opening source workbook
+    ' Otherwise its Workbook_Open fires, sees the temp file, and calls TransferMyData recursively
+    Application.EnableEvents = False
     Set sourceWb = Workbooks.Open(sourceWorkbookPath, ReadOnly:=True)
+    Application.EnableEvents = True
 
     Application.StatusBar = "Transferring INVENTORY data..."
     TransferSheetData sourceWb, WS_INVENTORY
