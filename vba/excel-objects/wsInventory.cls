@@ -15,7 +15,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 
     If Target.CountLarge > 1 Then Exit Sub
 
-    If Target.Row < 2 Then Exit Sub
+    If Target.row < 2 Then Exit Sub
 
     Application.EnableEvents = False
 
@@ -24,11 +24,11 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 
         If Trim(Target.Value) <> "" Then
 
-            InitializeInventoryRow Target.Row
+            InitializeInventoryRow Target.row
 
         Else
 
-            ClearInventoryRow Target.Row
+            ClearInventoryRow Target.row
 
         End If
 
@@ -38,13 +38,16 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If Target.Column = COL_DATE_SOLD Then
 
         If Trim(Target.Value) <> "" Then
-            ' Date entered - gray the row and mark as sold
-            Cells(Target.Row, COL_STATUS).Value = STATUS_SOLD
-            Rows(Target.Row).Interior.Color = RGB(220, 220, 220)
+            ' Date entered - gray the row (sold pending)
+            Rows(Target.row).Interior.Color = RGB(220, 220, 220)
         Else
-            ' Date cleared - restore white background and reset status
-            Cells(Target.Row, COL_STATUS).Value = STATUS_NEW
-            Rows(Target.Row).Interior.Color = RGB(255, 255, 255)
+            ' Date cleared - restore row to active status
+            ' Clear any SOLD status
+            Cells(Target.row, COL_STATUS).ClearContents
+            ' Restore alternating row colors
+            RefreshRowColorsAfterChange
+            ' Ensure row is visible
+            Rows(Target.row).Hidden = False
         End If
 
     End If
