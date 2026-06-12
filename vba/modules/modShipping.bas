@@ -2,7 +2,7 @@ Attribute VB_Name = "modShipping"
 Option Explicit
 
 Public Type tUSPSBoxMatch
-    Found As Boolean
+    found As Boolean
     BoxName As String
     OuterLength As Double
     OuterWidth As Double
@@ -123,9 +123,9 @@ Public Function FindSmallestUSPSPriorityMailBox( _
         innerHeight = CDbl(GetTableColumnValue(dataRow, tbl, "INNER HEIGHT"))
         If DimensionsFitAnyOrientation(itemLength, itemWidth, itemHeight, innerLength, innerWidth, innerHeight) Then
             currentVolume = BoxVolume(innerLength, innerWidth, innerHeight)
-            If matchResult.Found = False Or currentVolume < bestVolume Then
+            If matchResult.found = False Or currentVolume < bestVolume Then
                 bestVolume = currentVolume
-                matchResult.Found = True
+                matchResult.found = True
                 matchResult.BoxName = CStr(GetTableColumnValue(dataRow, tbl, "BOX NAME"))
                 matchResult.OuterLength = CDbl(GetTableColumnValue(dataRow, tbl, "OUTER LENGTH"))
                 matchResult.OuterWidth = CDbl(GetTableColumnValue(dataRow, tbl, "OUTER WIDTH"))
