@@ -290,8 +290,8 @@ Public Sub CreatePhotosTabControls(ByVal frm As frmItemEditor)
         .caption = "Select up to 12 photos. Photos are copied and renamed when Save and Close is clicked."
         .Left = 18
         .Top = 18
-        .Width = 760
-        .Height = 22
+        .width = 760
+        .height = 22
         .Font.Size = 10
     End With
     Set btnSelect = pg.Controls.Add("Forms.CommandButton.1", "btnSelectPhotos")
@@ -299,8 +299,8 @@ Public Sub CreatePhotosTabControls(ByVal frm As frmItemEditor)
         .caption = "Select Photos"
         .Left = 18
         .Top = 48
-        .Width = 120
-        .Height = 26
+        .width = 120
+        .height = 26
     End With
     frm.RegisterPhotoButtonEvent btnSelect, "SELECT"
     Set btnRemoveAll = pg.Controls.Add("Forms.CommandButton.1", "btnRemoveAllPhotos")
@@ -308,8 +308,8 @@ Public Sub CreatePhotosTabControls(ByVal frm As frmItemEditor)
         .caption = "Remove All"
         .Left = 150
         .Top = 48
-        .Width = 120
-        .Height = 26
+        .width = 120
+        .height = 26
     End With
     frm.RegisterPhotoButtonEvent btnRemoveAll, "REMOVE_ALL"
     frm.RefreshPhotoTab
