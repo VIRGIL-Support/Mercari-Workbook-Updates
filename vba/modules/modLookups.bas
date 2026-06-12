@@ -241,7 +241,7 @@ Public Sub SortLookupTable(ByVal lookupKey As String)
     With tbl.Sort
         .SortFields.Clear
         .SortFields.Add key:=tbl.ListColumns(LOOKUP_VALUE_COLUMN).DataBodyRange, SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
-        .Header = xlYes
+        .header = xlYes
         .Apply
     End With
 End Sub
