@@ -19,8 +19,8 @@ Public Function CreateStandardLabel( _
         .Left = UI_LEFT_MARGIN
         .Top = topPos + 3
 
-        .Width = UI_LABEL_WIDTH
-        .Height = 18
+        .width = UI_LABEL_WIDTH
+        .height = 18
 
         .Font.Size = UI_FONT_SIZE
         .Font.Bold = True
@@ -49,7 +49,7 @@ Public Function CreateStandardTextbox( _
     controlLeft = UI_LEFT_MARGIN + UI_LABEL_WIDTH + 10
 
     controlWidth = _
-        frm.mpItemTabs.Width _
+        frm.mpItemTabs.width _
         - controlLeft _
         - UI_RIGHT_MARGIN _
         - 10
@@ -67,8 +67,8 @@ Public Function CreateStandardTextbox( _
         .Left = controlLeft
         .Top = topPos
 
-        .Width = controlWidth
-        .Height = UI_STANDARD_HEIGHT
+        .width = controlWidth
+        .height = UI_STANDARD_HEIGHT
 
         .Font.Size = UI_FONT_SIZE
 
@@ -104,7 +104,7 @@ Public Function CreateMultilineTextbox( _
     Dim placeholderText As String
 
     controlWidth = _
-        frm.mpItemTabs.Width _
+        frm.mpItemTabs.width _
         - UI_LEFT_MARGIN _
         - UI_RIGHT_MARGIN _
         - 10
@@ -122,8 +122,8 @@ Public Function CreateMultilineTextbox( _
         .Left = UI_LEFT_MARGIN
         .Top = topPos + UI_MULTILINE_TOP_OFFSET
 
-        .Width = controlWidth
-        .Height = UI_MULTILINE_HEIGHT
+        .width = controlWidth
+        .height = UI_MULTILINE_HEIGHT
 
         .MultiLine = True
 
@@ -164,7 +164,7 @@ Public Function CreateEditableComboBox( _
     controlLeft = UI_LEFT_MARGIN + UI_LABEL_WIDTH + 10
 
     controlWidth = _
-        frm.mpItemTabs.Width _
+        frm.mpItemTabs.width _
         - controlLeft _
         - UI_RIGHT_MARGIN _
         - 10
@@ -182,8 +182,8 @@ Public Function CreateEditableComboBox( _
         .Left = controlLeft
         .Top = topPos
 
-        .Width = controlWidth
-        .Height = UI_STANDARD_HEIGHT
+        .width = controlWidth
+        .height = UI_STANDARD_HEIGHT
 
         ConfigureLookupComboBox cbo
 
@@ -233,7 +233,7 @@ Public Sub CreateBooleanWithNotesControls( _
     notesLeft = controlLeft + 190
 
     notesWidth = _
-        frm.mpItemTabs.Width _
+        frm.mpItemTabs.width _
         - notesLeft _
         - UI_RIGHT_MARGIN _
         - 10
@@ -247,8 +247,8 @@ Public Sub CreateBooleanWithNotesControls( _
         .Left = controlLeft
         .Top = topPos - 2
 
-        .Width = 180
-        .Height = 24
+        .width = 180
+        .height = 24
 
         .caption = ""
 
@@ -267,7 +267,7 @@ Public Sub CreateBooleanWithNotesControls( _
         .Left = 5
         .Top = 3
 
-        .Width = 50
+        .width = 50
 
         .Font.Size = UI_FONT_SIZE
 
@@ -284,7 +284,7 @@ Public Sub CreateBooleanWithNotesControls( _
         .Left = 60
         .Top = 3
 
-        .Width = 50
+        .width = 50
 
         .Font.Size = UI_FONT_SIZE
 
@@ -303,7 +303,7 @@ Public Sub CreateBooleanWithNotesControls( _
             .Left = 115
             .Top = 3
 
-            .Width = 60
+            .width = 60
 
             .Font.Size = UI_FONT_SIZE
 
@@ -322,8 +322,8 @@ Public Sub CreateBooleanWithNotesControls( _
         .Left = notesLeft
         .Top = topPos
 
-        .Width = notesWidth
-        .Height = UI_STANDARD_HEIGHT
+        .width = notesWidth
+        .height = UI_STANDARD_HEIGHT
 
         .Font.Size = UI_FONT_SIZE
 
@@ -375,8 +375,8 @@ Public Sub CreateDimensionsControl( _
         .Left = startLeft
         .Top = topPos + 2
 
-        .Width = 55
-        .Height = UI_STANDARD_HEIGHT
+        .width = 55
+        .height = UI_STANDARD_HEIGHT
 
         .Font.Size = UI_FONT_SIZE
 
@@ -396,7 +396,7 @@ Public Sub CreateDimensionsControl( _
         .Left = startLeft + 62
         .Top = topPos + 4
 
-        .Width = 10
+        .width = 10
 
         .Font.Size = UI_FONT_SIZE
         .Font.Bold = True
@@ -410,8 +410,8 @@ Public Sub CreateDimensionsControl( _
         .Left = startLeft + 78
         .Top = topPos + 2
 
-        .Width = 55
-        .Height = UI_STANDARD_HEIGHT
+        .width = 55
+        .height = UI_STANDARD_HEIGHT
 
         .Font.Size = UI_FONT_SIZE
 
@@ -431,7 +431,7 @@ Public Sub CreateDimensionsControl( _
         .Left = startLeft + 140
         .Top = topPos + 4
 
-        .Width = 10
+        .width = 10
 
         .Font.Size = UI_FONT_SIZE
         .Font.Bold = True
@@ -445,8 +445,8 @@ Public Sub CreateDimensionsControl( _
         .Left = startLeft + 156
         .Top = topPos + 2
 
-        .Width = 55
-        .Height = UI_STANDARD_HEIGHT
+        .width = 55
+        .height = UI_STANDARD_HEIGHT
 
         .Font.Size = UI_FONT_SIZE
 
@@ -490,8 +490,8 @@ Public Sub CreateWeightControl( _
         .Left = startLeft
         .Top = topPos + 2
 
-        .Width = 55
-        .Height = UI_STANDARD_HEIGHT
+        .width = 55
+        .height = UI_STANDARD_HEIGHT
 
         .Font.Size = UI_FONT_SIZE
 
@@ -511,7 +511,7 @@ Public Sub CreateWeightControl( _
         .Left = startLeft + 62
         .Top = topPos + 4
 
-        .Width = 22
+        .width = 22
 
         .Font.Size = UI_FONT_SIZE
 
@@ -524,8 +524,8 @@ Public Sub CreateWeightControl( _
         .Left = startLeft + 95
         .Top = topPos + 2
 
-        .Width = 55
-        .Height = UI_STANDARD_HEIGHT
+        .width = 55
+        .height = UI_STANDARD_HEIGHT
 
         .Font.Size = UI_FONT_SIZE
 
@@ -545,7 +545,7 @@ Public Sub CreateWeightControl( _
         .Left = startLeft + 157
         .Top = topPos + 4
 
-        .Width = 20
+        .width = 20
 
         .Font.Size = UI_FONT_SIZE
 
