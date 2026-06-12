@@ -722,9 +722,9 @@ Private Sub FormatDetailsDocument(ByVal wdDoc As Object, ByVal tbl As Object)
     tbl.Rows.LeftIndent = 0
     tbl.PreferredWidthType = 3
     tbl.PreferredWidth = PointsFromInches(9.5)
-    tbl.Columns(1).Width = PointsFromInches(0.5)
-    tbl.Columns(2).Width = PointsFromInches(3.75)
-    tbl.Columns(3).Width = PointsFromInches(5.25)
+    tbl.Columns(1).width = PointsFromInches(0.5)
+    tbl.Columns(2).width = PointsFromInches(3.75)
+    tbl.Columns(3).width = PointsFromInches(5.25)
     tbl.Rows.AllowBreakAcrossPages = False
     tbl.Rows(1).HeadingFormat = True
     ApplyCellMargins tbl
@@ -789,13 +789,13 @@ Private Sub EnrichDetailsTable(ByVal tbl As Object, ByVal inventoryRow As Long)
         On Error GoTo ShippingLookupError
         boxMatch = FindSmallestUSPSPriorityMailBox(itemLength, itemWidth, itemHeight)
         On Error GoTo 0
-        If boxMatch.Found Then
+        If boxMatch.found Then
             SetTableValueByLabel tbl, "USPS PRIORITY MAIL - BOX TYPE", boxMatch.BoxName
             SetTableValueByLabel tbl, "USPS PRIORITY MAIL PACKAGE - LENGTH", CStr(boxMatch.OuterLength)
             SetTableValueByLabel tbl, "USPS PRIORITY MAIL PACKAGE - WIDTH", CStr(boxMatch.OuterWidth)
             SetTableValueByLabel tbl, "USPS PRIORITY MAIL PACKAGE - HEIGHT", CStr(boxMatch.OuterHeight)
-            contentPounds = CDbl(Val(GetFieldValue(inventoryRow, "WEIGHT_POUNDS")))
-            contentOunces = CDbl(Val(GetFieldValue(inventoryRow, "WEIGHT_OUNCES")))
+            contentPounds = CDbl(val(GetFieldValue(inventoryRow, "WEIGHT_POUNDS")))
+            contentOunces = CDbl(val(GetFieldValue(inventoryRow, "WEIGHT_OUNCES")))
             totalShippingOunces = (contentPounds * 16) + contentOunces + boxMatch.BoxWeightOunces + boxMatch.PackingWeightOunces
             ConvertTotalOuncesToPoundsOunces totalShippingOunces, shippingPounds, shippingOunces
             SetTableValueByLabel tbl, "USPS PRIORITY MAIL PACKAGE WEIGHT - POUNDS", CStr(shippingPounds)
