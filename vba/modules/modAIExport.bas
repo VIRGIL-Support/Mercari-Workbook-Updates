@@ -160,7 +160,7 @@ Private Function ReadWorksheetTemplate() As String
     End If
     Set usedRange = ws.usedRange
     For Each rowRange In usedRange.Rows
-        cellValue = CStr(ws.Cells(rowRange.Row, 1).Value)
+        cellValue = CStr(ws.Cells(rowRange.row, 1).Value)
         If Trim$(cellValue) <> "" Then
             ReadWorksheetTemplate = ReadWorksheetTemplate & cellValue & vbCrLf
         End If
