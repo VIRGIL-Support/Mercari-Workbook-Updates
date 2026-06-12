@@ -46,6 +46,11 @@ Public Sub InitializeWorkbook()
     Call RefreshCopyright
     On Error GoTo 0
     
+    ' Create Mercari signup button on Welcome sheet
+    On Error Resume Next
+    Call CreateMercariSignupButton
+    On Error GoTo 0
+    
     ApplyColumnFormatting
 
     ' =====================================================
@@ -65,6 +70,11 @@ Public Sub InitializeWorkbook()
 
         ' Set hidden watermark for copyright tracking
         Call SetHiddenWatermark
+
+        ' Ask about automatic update checking with privacy information
+        On Error Resume Next
+        Call PromptForAutoUpdatePreference
+        On Error GoTo 0
 
         ' MARK FIRST RUN COMPLETE
         Call SetSettingValue("FIRST_RUN_COMPLETE", "Yes")
@@ -114,4 +124,117 @@ Public Sub EnsureWorkbookFolders(ByVal rootFolder As String)
     Call SetSettingValue("LOGS_FOLDER", rootFolder & "\Logs")
     Call SetSettingValue("BACKUPS_FOLDER", rootFolder & "\Backups")
 
+End Sub
+
+' =====================================================
+' WELCOME SHEET: Create Mercari Signup Button
+' =====================================================
+
+Public Sub CreateMercariSignupButton()
+    ' Creates a proper button shape on Welcome worksheet row 36
+    
+    Dim ws As Worksheet
+    Dim btn As Shape
+    Dim btnLeft As Double
+    Dim btnTop As Double
+    Dim btnWidth As Double
+    Dim btnHeight As Double
+    Dim fontColor As Long
+    Dim borderColor As Long
+    Dim bgColor As Long
+    
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(WS_WELCOME)
+    If ws Is Nothing Then Exit Sub
+    
+    ' Delete existing button if present
+    ws.Shapes("BTN_MERCARI_SIGNUP").Delete
+    
+    ' Color specifications
+    fontColor = RGB(94, 109, 242)      ' Font color
+    borderColor = RGB(197, 203, 250)   ' Border color
+    bgColor = RGB(94, 109, 242)        ' Background behind button
+    
+    ' Clear old text/hyperlink from the cells first (A36:K36)
+    ws.Range("A36:K36").ClearContents
+    ws.Range("A36:K36").Hyperlinks.Delete
+    
+    ' Set background color behind the button
+    ws.Range("A36:K36").Interior.Color = bgColor
+    
+    ' Button dimensions
+    btnHeight = 32
+    btnWidth = 480
+    
+    ' Center horizontally between columns A and K
+    Dim areaLeft As Double, areaWidth As Double
+    areaLeft = ws.Range("A36").Left
+    areaWidth = ws.Range("A36:K36").Width
+    btnLeft = areaLeft + (areaWidth - btnWidth) / 2
+    
+    ' Center vertically between rows 34 and 39
+    Dim sectionTop As Double, sectionHeight As Double
+    sectionTop = ws.Rows(34).Top
+    sectionHeight = ws.Range("34:39").Height
+    btnTop = sectionTop + (sectionHeight - btnHeight) / 2
+    
+    ' Create rounded rectangle button
+    Set btn = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
+    
+    With btn
+        .Name = "BTN_MERCARI_SIGNUP"
+        .TextFrame.Characters.Text = "Click Here to Join Mercari and Claim Your $20 Bonus!"
+        .TextFrame.HorizontalAlignment = xlHAlignCenter
+        .TextFrame.VerticalAlignment = xlVAlignCenter
+        .TextFrame.MarginLeft = 5
+        .TextFrame.MarginRight = 5
+        .TextFrame.MarginTop = 3
+        .TextFrame.MarginBottom = 3
+        
+        ' Atkinson Hyperlegible font at 16pt
+        .TextFrame.Characters.Font.Name = "Atkinson Hyperlegible"
+        .TextFrame.Characters.Font.Size = 16
+        .TextFrame.Characters.Font.Bold = True
+        .TextFrame.Characters.Font.Color = fontColor
+        
+        ' White background with border color
+        .Fill.ForeColor.RGB = RGB(255, 255, 255)
+        .Line.ForeColor.RGB = borderColor
+        .Line.Weight = 2.5
+        
+        ' Shadow effect
+        .Shadow.Visible = msoTrue
+        .Shadow.Style = msoShadowStyleOuterShadow
+        .Shadow.OffsetX = 2
+        .Shadow.OffsetY = 2
+        .Shadow.Blur = 4
+        .Shadow.ForeColor.RGB = RGB(0, 0, 0)
+        .Shadow.Transparency = 0.5
+        
+        ' Assign click action
+        .OnAction = "OpenMercariSignupLink"
+    End With
+    
+    On Error GoTo 0
+    
+End Sub
+
+' =====================================================
+' Open Mercari Signup Link
+' =====================================================
+
+Public Sub OpenMercariSignupLink()
+    ' Opens the Mercari signup link in default browser
+    
+    Dim signupURL As String
+    signupURL = "https://www.mercari.com/invitations/?iv_code=NVCYKW"
+    
+    On Error Resume Next
+    ActiveWorkbook.FollowHyperlink signupURL
+    If Err.Number <> 0 Then
+        ' Fallback if FollowHyperlink fails
+        Shell "explorer.exe """ & signupURL & """", vbNormalFocus
+    End If
+    On Error GoTo 0
+    
 End Sub
