@@ -54,7 +54,7 @@ Public Sub WriteDetailedErrorLog( _
     ' Additional context for debugging
     Print #fileNumber, "--- Application State ---"
     Print #fileNumber, "Workbook: " & ThisWorkbook.FullName
-    Print #fileNumber, "Excel Version: " & Application.Version
+    Print #fileNumber, "Excel Version: " & Application.VERSION
     Print #fileNumber, "ScreenUpdating: " & Application.ScreenUpdating
     Print #fileNumber, "Calculation: " & Application.Calculation
     
@@ -127,7 +127,7 @@ Public Sub ReportIssue()
     Print #fileNumber, userDescription
     Print #fileNumber, "--- Application State ---"
     Print #fileNumber, "Workbook: " & ThisWorkbook.FullName
-    Print #fileNumber, "Excel Version: " & Application.Version
+    Print #fileNumber, "Excel Version: " & Application.VERSION
     On Error Resume Next
     Print #fileNumber, "ActiveSheet: " & ActiveSheet.Name
     Print #fileNumber, "ActiveCell: " & ActiveCell.Address
