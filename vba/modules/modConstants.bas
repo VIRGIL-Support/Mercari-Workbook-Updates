@@ -21,6 +21,10 @@ Public Const WS_TABLES As String = "TABLES"
 Public Const WS_SETTINGS As String = "SETTINGS"
 Public Const WS_LOOKUPS As String = "LOOKUPS"
 Public Const WS_SOLD_ITEMS As String = "SOLD ITEMS"
+Public Const WS_WELCOME As String = "WELCOME"
+Public Const WS_HELP As String = "HELP"
+Public Const WS_PREREQUISITES As String = "PREREQUISITES"
+Public Const WS_SELLER_ESSENTIALS As String = "SELLER ESSENTIALS"
 
 ' =====================================================
 ' TABLE NAMES
