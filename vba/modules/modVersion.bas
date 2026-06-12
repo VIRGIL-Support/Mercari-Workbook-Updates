@@ -55,10 +55,11 @@ Public Sub CheckForUpdatesOnOpen()
         userChoice = MsgBox("A new version (" & latestVersion & ") is available!" & vbCrLf & vbCrLf & _
                            "Current version: " & CURRENT_VERSION & vbCrLf & vbCrLf & _
                            "Would you like to update now?" & vbCrLf & vbCrLf & _
-                           "When you click Yes, don't worry if it takes me up to a minute to respond. " & _
-                           "I'll be busy backing up all of your data, downloading the update, " & _
-                           "transferring everything into the shiny new version, and then double-checking " & _
-                           "to make sure it's all perfect for you. I've got it all taken care of!", vbYesNo + vbInformation, "Update Available")
+                           "When you click Yes, don't worry if it takes me up to a minute to respond." & vbCrLf & _
+                           "I'll be busy backing up all of your data." & vbCrLf & _
+                           "Then I'll download the update and transfer everything into the shiny new version." & vbCrLf & _
+                           "Finally, I'll double-check to make sure it's all perfect for you." & vbCrLf & vbCrLf & _
+                           "I've got it all taken care of!", vbYesNo + vbInformation, "Update Available")
         
         If userChoice = vbYes Then
             DownloadUpdate latestVersion
@@ -851,14 +852,6 @@ Private Function CheckForPendingTransfer() As Boolean
     Close #logNum
 End Function
 
-' ============================================
-' MANUAL UPDATE CHECK
-' ============================================
-
-Public Sub ManualCheckForUpdates()
-    CheckForUpdatesOnOpen
-End Sub
-
 ' Toggle auto-check setting
 Public Sub ToggleAutoCheckUpdates()
     Dim current As String
@@ -1103,4 +1096,116 @@ Private Sub LogEntry(ByVal logFile As String, ByVal msg As String)
     Open logFile For Append As #fn
     Print #fn, Format(Now, "hh:nn:ss") & "  " & msg
     Close #fn
+End Sub
+
+' ============================================
+' FIRST-RUN UPDATE PREFERENCE DIALOG
+' ============================================
+
+Public Sub PromptForAutoUpdatePreference()
+    ' Called on first run to ask user about automatic update checking
+    ' Includes privacy information about what data is transmitted
+    
+    Dim msg As String
+    Dim result As VbMsgBoxResult
+    
+    msg = "Would you like the workbook to automatically check for updates when you open it?" & vbCrLf & vbCrLf & _
+          "PRIVACY & SECURITY INFORMATION:" & vbCrLf & _
+          String(40, "-") & vbCrLf & _
+          "What is transmitted:" & vbCrLf & _
+          "  • Only your current version number is sent" & vbCrLf & _
+          "  • This is compared to the latest version online" & vbCrLf & vbCrLf & _
+          "What is NOT transmitted:" & vbCrLf & _
+          "  • NO inventory data or item details" & vbCrLf & _
+          "  • NO photos or documents" & vbCrLf & _
+          "  • NO personal information or email addresses" & vbCrLf & _
+          "  • NO sales data or listing information" & vbCrLf & vbCrLf & _
+          "Your data stays 100% on your computer." & vbCrLf & vbCrLf & _
+          "Click YES to enable automatic update checks, or NO to check manually only when you choose."
+    
+    result = MsgBox(msg, vbYesNo + vbQuestion + vbDefaultButton1, "Update Checking Preference")
+    
+    If result = vbYes Then
+        UpdateSetting "AUTO_CHECK_UPDATES", "YES"
+        MsgBox "Automatic update checking is now ENABLED." & vbCrLf & vbCrLf & _
+               "You can disable this anytime from the HELP worksheet.", vbInformation, "Settings Saved"
+    Else
+        UpdateSetting "AUTO_CHECK_UPDATES", "NO"
+        MsgBox "Automatic update checking is DISABLED." & vbCrLf & vbCrLf & _
+               "You can still check for updates manually from the HELP worksheet, or re-enable automatic checking anytime.", vbInformation, "Settings Saved"
+    End If
+    
+End Sub
+
+' ============================================
+' ENABLE/DISABLE AUTO-CHECK FUNCTIONS
+' ============================================
+
+Public Sub EnableAutoCheckUpdates()
+    ' Re-enable automatic update checking
+    UpdateSetting "AUTO_CHECK_UPDATES", "YES"
+    MsgBox "Automatic update checking is now ENABLED." & vbCrLf & vbCrLf & _
+           "PRIVACY NOTE: Only your version number is transmitted to check for updates. " & _
+           "No inventory data, photos, or personal information ever leaves your computer.", _
+           vbInformation, "Auto-Check Enabled"
+End Sub
+
+Public Sub DisableAutoCheckUpdates()
+    ' Disable automatic update checking
+    UpdateSetting "AUTO_CHECK_UPDATES", "NO"
+    MsgBox "Automatic update checking is now DISABLED." & vbCrLf & vbCrLf & _
+           "You can still check for updates manually using the 'Check for Updates' button on the HELP worksheet.", _
+           vbInformation, "Auto-Check Disabled"
+End Sub
+
+' ============================================
+' MANUAL UPDATE CHECK WITH PRIVACY INFO
+' ============================================
+
+Public Sub ManualCheckForUpdates()
+    ' Manual check with privacy notice
+    MsgBox "MANUAL UPDATE CHECK" & vbCrLf & vbCrLf & _
+           "PRIVACY & SECURITY:" & vbCrLf & _
+           String(30, "-") & vbCrLf & _
+           "• Only your version number will be sent" & vbCrLf & _
+           "• NO inventory data, photos, or personal info is transmitted" & vbCrLf & _
+           "• All your data stays safely on your computer" & vbCrLf & vbCrLf & _
+           "Click OK to check for available updates now.", _
+           vbInformation + vbOKCancel, "Check for Updates"
+    
+    CheckForUpdatesOnOpen
+End Sub
+
+' ============================================
+' SHOW PRIVACY INFORMATION
+' ============================================
+
+Public Sub ShowUpdatePrivacyInfo()
+    ' Display privacy information about update checking
+    ' Can be called from any menu or help button
+    
+    Dim msg As String
+    
+    msg = "UPDATE CHECKING - PRIVACY & SECURITY INFORMATION" & vbCrLf & vbCrLf & _
+          "WHAT IS TRANSMITTED:" & vbCrLf & _
+          String(25, "-") & vbCrLf & _
+          "  • Only your current workbook version number" & vbCrLf & _
+          "  • Example: Version 1.1" & vbCrLf & vbCrLf & _
+          "WHAT IS NEVER TRANSMITTED:" & vbCrLf & _
+          String(30, "-") & vbCrLf & _
+          "  • Inventory data (item names, prices, descriptions)" & vbCrLf & _
+          "  • Photos or image files" & vbCrLf & _
+          "  • Word documents or description files" & vbCrLf & _
+          "  • Your name, email, or any personal information" & vbCrLf & _
+          "  • Sales history or sold item data" & vbCrLf & _
+          "  • Folder paths or file locations" & vbCrLf & vbCrLf & _
+          "YOUR DATA SECURITY:" & vbCrLf & _
+          String(20, "-") & vbCrLf & _
+          "  • 100% of your data stays on YOUR computer" & vbCrLf & _
+          "  • We cannot access, view, or download your inventory" & vbCrLf & _
+          "  • Update checking only compares version numbers" & vbCrLf & _
+          "  • Downloading updates is optional and under your control"
+    
+    MsgBox msg, vbInformation, "Privacy & Security Information"
+    
 End Sub
