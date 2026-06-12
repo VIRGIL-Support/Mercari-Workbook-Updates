@@ -219,125 +219,160 @@ Public Sub RefreshCopyright()
 End Sub
 
 ' =====================================================
-' RECOMMENDED TOOLS & AFFILIATE LINKS
+' DEVELOPER BUTTONS: Hide/Unhide All Worksheets
 ' =====================================================
 
-' Open the Recommended Tools document (markdown or HTML version)
-Public Sub OpenRecommendedTools()
-    Dim helpPath As String
-    Dim toolsFile As String
-    Dim htmlFile As String
+Public Sub CreateUnhideButton()
+    ' Creates buttons at A100 and A101 on HELP worksheet for testing
     
-    helpPath = ThisWorkbook.Path & "\HELP DOCS"
-    
-    ' Check for HTML version first (better user experience)
-    htmlFile = helpPath & "\Recommended Tools & Affiliate Opportunities.html"
-    toolsFile = helpPath & "\Recommended Tools & Affiliate Opportunities.md"
+    Dim ws As Worksheet
+    Dim btn As Shape
+    Dim btnLeft As Double
+    Dim btnTop As Double
+    Dim btnWidth As Double
     
     On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets("HELP")
+    If ws Is Nothing Then Exit Sub
     
-    ' Try HTML version first
-    If Dir(htmlFile) <> "" Then
-        ThisWorkbook.FollowHyperlink htmlFile
-        Exit Sub
-    End If
+    ' Delete existing buttons if present
+    ws.Shapes("BTN_UNHIDE_ALL").Delete
+    ws.Shapes("BTN_HIDE_ALL").Delete
     
-    ' Try markdown version
-    If Dir(toolsFile) <> "" Then
-        ' Open with default application (usually Notepad or markdown viewer)
-        ThisWorkbook.FollowHyperlink toolsFile
-        Exit Sub
-    End If
+    ' Button dimensions
+    btnLeft = ws.Range("A100").Left + 5
+    btnWidth = ws.Range("A100:B100").Width - 10
     
-    ' Try alternative filename without spaces
-    toolsFile = helpPath & "\Recommended Tools and Affiliate Opportunities.md"
-    If Dir(toolsFile) <> "" Then
-        ThisWorkbook.FollowHyperlink toolsFile
-        Exit Sub
-    End If
+    ' Create UNHIDE button at A100
+    btnTop = ws.Range("A100").Top + 3
+    Set btn = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, 20)
+    
+    With btn
+        .Name = "BTN_UNHIDE_ALL"
+        .TextFrame.Characters.Text = "UNHIDE ALL WORKSHEETS"
+        .TextFrame.HorizontalAlignment = xlHAlignCenter
+        .TextFrame.VerticalAlignment = xlVAlignCenter
+        .TextFrame.Characters.Font.Size = 9
+        .TextFrame.Characters.Font.Bold = True
+        .TextFrame.Characters.Font.Color = RGB(255, 255, 255)
+        .Fill.ForeColor.RGB = RGB(92, 127, 168)  ' Blue
+        .Line.ForeColor.RGB = RGB(61, 95, 130)
+        .OnAction = "UnhideAllWorksheets"
+    End With
+    
+    ' Create HIDE button at A101
+    btnTop = ws.Range("A101").Top + 3
+    Set btn = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, 20)
+    
+    With btn
+        .Name = "BTN_HIDE_ALL"
+        .TextFrame.Characters.Text = "HIDE ALL WORKSHEETS"
+        .TextFrame.HorizontalAlignment = xlHAlignCenter
+        .TextFrame.VerticalAlignment = xlVAlignCenter
+        .TextFrame.Characters.Font.Size = 9
+        .TextFrame.Characters.Font.Bold = True
+        .TextFrame.Characters.Font.Color = RGB(255, 255, 255)
+        .Fill.ForeColor.RGB = RGB(61, 95, 130)  ' Darker blue
+        .Line.ForeColor.RGB = RGB(41, 70, 100)
+        .OnAction = "HideAllWorksheetsForTesting"
+    End With
     
     On Error GoTo 0
     
-    ' If neither found, show message
-    MsgBox "Recommended Tools document not found." & vbCrLf & vbCrLf & _
-           "Expected location:" & vbCrLf & _
-           helpPath & "\Recommended Tools & Affiliate Opportunities.md" & vbCrLf & vbCrLf & _
-           "Please ensure the file exists in the HELP DOCS folder.", _
-           vbExclamation, "File Not Found"
 End Sub
 
-' Open the Quick Start Guide
-Public Sub OpenQuickStartGuide()
-    Dim helpPath As String
-    Dim quickFile As String
-    
-    helpPath = ThisWorkbook.Path & "\HELP DOCS"
-    quickFile = helpPath & "\Quick Start.md"
+' =====================================================
+' HIDE ALL WORKSHEETS (for testing)
+' =====================================================
+
+Public Sub HideAllWorksheetsForTesting()
+    ' For development use - rehides all system worksheets
     
     On Error Resume Next
     
-    If Dir(quickFile) <> "" Then
-        ThisWorkbook.FollowHyperlink quickFile
-    Else
-        MsgBox "Quick Start Guide not found in HELP DOCS folder.", vbExclamation
-    End If
+    ThisWorkbook.Worksheets("DATA").Visible = xlSheetVeryHidden
+    ThisWorkbook.Worksheets("LOOKUPS").Visible = xlSheetVeryHidden
+    ThisWorkbook.Worksheets("SETTINGS").Visible = xlSheetVeryHidden
+    ThisWorkbook.Worksheets("TABLES").Visible = xlSheetVeryHidden
+    ThisWorkbook.Worksheets("COPYRIGHT_INFO").Visible = xlSheetVeryHidden
+    ThisWorkbook.Worksheets("SOLD_DATA").Visible = xlSheetVeryHidden
     
+    On Error GoTo 0
+    
+    MsgBox "All system worksheets are now hidden.", vbInformation
+    
+End Sub
+
+' ============================================
+' RESET FIRST-RUN SETTINGS (FOR TESTING)
+' ============================================
+
+Public Sub ResetFirstRunSettings()
+    ' Resets first-run flags so you can test the initial user experience
+    ' This is for development/testing purposes only
+    
+    Dim confirmResult As VbMsgBoxResult
+    
+    confirmResult = MsgBox("This will reset ALL first-run settings including:" & vbCrLf & vbCrLf & _
+                          "• EULA acceptance status" & vbCrLf & _
+                          "• Update preference choice" & vbCrLf & _
+                          "• First-run completion flag" & vbCrLf & vbCrLf & _
+                          "The workbook will behave as if opened for the very first time." & vbCrLf & vbCrLf & _
+                          "Continue?", vbYesNo + vbExclamation, "Reset First-Run Settings")
+    
+    If confirmResult <> vbYes Then Exit Sub
+    
+    On Error Resume Next
+    
+    ' Clear first-run related settings
+    UpdateSetting "FIRST_RUN_COMPLETE", ""
+    UpdateSetting "AUTO_CHECK_UPDATES", ""
+    UpdateSetting "EULA_ACCEPTED", ""
+    UpdateSetting "EULA_ACCEPTED_DATE", ""
+    
+    On Error GoTo 0
+    
+    MsgBox "First-run settings have been RESET." & vbCrLf & vbCrLf & _
+           "Close and reopen the workbook to experience the first-time setup flow:" & vbCrLf & vbCrLf & _
+           "• Macro security info" & vbCrLf & _
+           "• EULA display" & vbCrLf & _
+           "• Update preference prompt (with privacy info)" & vbCrLf & _
+           "• Initial setup completion", vbInformation, "Reset Complete"
+    
+End Sub
+
+' =====================================================
+' UPDATE CHECKING FUNCTIONS
+' =====================================================
+
+' Check for Updates button handler
+Public Sub CheckForUpdatesButtonClick()
+    On Error Resume Next
+    ManualCheckForUpdates
     On Error GoTo 0
 End Sub
 
-' Open the Full User Guide
-Public Sub OpenUserGuide()
-    Dim helpPath As String
-    Dim guideFile As String
+' Toggle Auto-Check Updates button handler
+Public Sub ToggleAutoCheckButtonClick()
+    Dim current As String
+    Dim newState As String
+    Dim msg As String
     
-    helpPath = ThisWorkbook.Path & "\HELP DOCS"
-    guideFile = helpPath & "\User Guide.md"
+    current = GetSettingValue("AUTO_CHECK_UPDATES")
     
-    On Error Resume Next
-    
-    If Dir(guideFile) <> "" Then
-        ThisWorkbook.FollowHyperlink guideFile
+    If current = "NO" Or Trim$(current) = "" Then
+        newState = "YES"
+        UpdateSetting "AUTO_CHECK_UPDATES", "YES"
+        msg = "Automatic update checking is now ENABLED." & vbCrLf & vbCrLf & _
+              "VIRGIL will check for updates each time the workbook opens." & vbCrLf & vbCrLf & _
+              "PRIVACY NOTE: Only your version number is transmitted. " & _
+              "No inventory data, photos, or personal information ever leaves your computer."
     Else
-        MsgBox "User Guide not found in HELP DOCS folder.", vbExclamation
+        newState = "NO"
+        UpdateSetting "AUTO_CHECK_UPDATES", "NO"
+        msg = "Automatic update checking is now DISABLED." & vbCrLf & vbCrLf & _
+              "You can still check for updates manually using the 'Check for Updates' button."
     End If
     
-    On Error GoTo 0
-End Sub
-
-' Open the FAQ
-Public Sub OpenFAQ()
-    Dim helpPath As String
-    Dim faqFile As String
-    
-    helpPath = ThisWorkbook.Path & "\HELP DOCS"
-    faqFile = helpPath & "\FAQ.md"
-    
-    On Error Resume Next
-    
-    If Dir(faqFile) <> "" Then
-        ThisWorkbook.FollowHyperlink faqFile
-    Else
-        MsgBox "FAQ not found in HELP DOCS folder.", vbExclamation
-    End If
-    
-    On Error GoTo 0
-End Sub
-
-' Open EULA document
-Public Sub OpenEULA()
-    Dim helpPath As String
-    Dim eulaFile As String
-    
-    helpPath = ThisWorkbook.Path & "\HELP DOCS"
-    eulaFile = helpPath & "\EULA.txt"
-    
-    On Error Resume Next
-    
-    If Dir(eulaFile) <> "" Then
-        ThisWorkbook.FollowHyperlink eulaFile
-    Else
-        MsgBox "EULA not found in HELP DOCS folder.", vbExclamation
-    End If
-    
-    On Error GoTo 0
+    MsgBox msg, vbInformation, "Auto-Check Updates: " & IIf(newState = "YES", "ENABLED", "DISABLED")
 End Sub
