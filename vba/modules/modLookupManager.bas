@@ -177,10 +177,11 @@ Private Sub EditLookupValues(ByVal lookupType As String, ByVal lookupDisplay As 
     Dim colValues As Collection
     Dim vItem As Variant
     Dim currentList As String
+    Dim lineNumberInput As String
+    Dim lineNumber As Long
     Dim valueToEdit As String
     Dim newValue As String
     Dim i As Long
-    Dim found As Boolean
     
     Set colValues = GetLookupValues(lookupType)
     
@@ -198,25 +199,38 @@ Private Sub EditLookupValues(ByVal lookupType As String, ByVal lookupDisplay As 
         If i > 50 Then Exit For
     Next vItem
     
-    ' Get value to edit
-    valueToEdit = InputBox(currentList & vbCrLf & vbCrLf & "Type the EXACT " & lookupDisplay & " to edit:", "Edit " & lookupDisplay, "")
+    ' Get line number to edit
+    lineNumberInput = InputBox(currentList & vbCrLf & vbCrLf & _
+                               "Enter the LINE NUMBER of the " & lookupDisplay & " to edit:" & vbCrLf & _
+                               "(Example: Enter 3 to edit item #3 in the list)", _
+                               "Edit " & lookupDisplay, "")
     
-    If StrPtr(valueToEdit) = 0 Or Trim$(valueToEdit) = "" Then
+    If StrPtr(lineNumberInput) = 0 Or Trim$(lineNumberInput) = "" Then
         MsgBox "Edit cancelled.", vbInformation
         Exit Sub
     End If
     
-    ' Verify it exists
-    found = LookupValueExists(lookupType, valueToEdit)
-    If Not found Then
-        MsgBox "'" & valueToEdit & "' not found in " & lookupDisplay & " list." & vbCrLf & vbCrLf & "Please check spelling and try again.", vbExclamation
+    ' Validate line number
+    If Not IsNumeric(lineNumberInput) Then
+        MsgBox "Please enter a valid number.", vbExclamation, "Invalid Input"
         Exit Sub
     End If
     
-    ' Get new value
-    newValue = InputBox("Edit " & lookupDisplay & ":" & vbCrLf & vbCrLf & _
-                        "Current: " & valueToEdit & vbCrLf & vbCrLf & _
-                        "Enter new spelling:", "Edit " & lookupDisplay, valueToEdit)
+    lineNumber = CLng(lineNumberInput)
+    
+    If lineNumber < 1 Or lineNumber > colValues.Count Then
+        MsgBox "Please enter a number between 1 and " & colValues.Count & ".", vbExclamation, "Invalid Line Number"
+        Exit Sub
+    End If
+    
+    ' Get the value at that line number
+    valueToEdit = colValues(lineNumber)
+    
+    ' Show edit dialog with current value displayed
+    newValue = InputBox("Field to be edited:" & vbCrLf & vbCrLf & _
+                        valueToEdit & vbCrLf & vbCrLf & _
+                        "Enter the correct spelling:", _
+                        "Edit " & lookupDisplay, valueToEdit)
     
     If StrPtr(newValue) = 0 Or Trim$(newValue) = "" Then
         MsgBox "Edit cancelled.", vbInformation
@@ -228,21 +242,10 @@ Private Sub EditLookupValues(ByVal lookupType As String, ByVal lookupDisplay As 
         Exit Sub
     End If
     
-    ' Confirm
-    Dim resp As VbMsgBoxResult
-    resp = MsgBox("Confirm edit:" & vbCrLf & vbCrLf & _
-                  "FROM: " & valueToEdit & vbCrLf & _
-                  "TO: " & newValue, vbYesNo + vbQuestion, "Confirm Edit")
-    
-    If resp <> vbYes Then
-        MsgBox "Edit cancelled.", vbInformation
-        Exit Sub
-    End If
-    
     ' Perform edit
     If EditLookupValueInternal(lookupType, valueToEdit, newValue) Then
-        MsgBox "Successfully updated!" & vbCrLf & vbCrLf & _
-               "Changed: " & valueToEdit & " → " & newValue, vbInformation, "Edit Complete"
+        MsgBox lookupDisplay & " updated successfully!" & vbCrLf & vbCrLf & _
+               valueToEdit & " renamed to " & newValue, vbInformation, "Edit Complete"
     Else
         MsgBox "Could not update. Please try again.", vbExclamation, "Error"
     End If
