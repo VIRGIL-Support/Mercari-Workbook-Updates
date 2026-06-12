@@ -1,6 +1,6 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} frmItemEditor 
-   Caption         =   "Item Editor"
+   Caption         =   "Item Details Editor"
    ClientHeight    =   13440
    ClientLeft      =   108
    ClientTop       =   456
@@ -13,6 +13,7 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+
 
 
 Option Explicit
@@ -467,8 +468,8 @@ Public Sub RefreshPhotoTab()
         With img
             .Left = leftPos
             .Top = topPos
-            .Width = 92
-            .Height = 64
+            .width = 92
+            .height = 64
             .PictureSizeMode = fmPictureSizeModeZoom
             On Error Resume Next
             Set .Picture = LoadPicture(CStr(mSelectedPhotoPaths(i)))
@@ -479,8 +480,8 @@ Public Sub RefreshPhotoTab()
             .caption = Mid$(CStr(mSelectedPhotoPaths(i)), InStrRev(CStr(mSelectedPhotoPaths(i)), "\") + 1)
             .Left = leftPos
             .Top = topPos + 66
-            .Width = 130
-            .Height = 12
+            .width = 130
+            .height = 12
             .Font.Size = 7
         End With
         Set btn = pg.Controls.Add("Forms.CommandButton.1", "btnRemovePhoto_" & i)
@@ -488,8 +489,8 @@ Public Sub RefreshPhotoTab()
             .caption = "X"
             .Left = leftPos + 74
             .Top = topPos
-            .Width = 18
-            .Height = 16
+            .width = 18
+            .height = 16
         End With
         RegisterPhotoButtonEvent btn, "REMOVE_ONE", i
     Next i
@@ -519,14 +520,14 @@ Private Sub RefreshHeaderDisplay()
     Dim displayName As String
 
     lblItemNumber.caption = mItemNumber
-    lblItemNumber.Width = 72
+    lblItemNumber.width = 72
 
     displayName = mItemName
     If Len(displayName) > 72 Then displayName = Left$(displayName, 72) & "..."
     lblItemName.caption = displayName
-    lblItemName.Left = lblItemNumber.Left + lblItemNumber.Width + 6
-    lblItemName.Width = 480
-    lblItemName.Height = lblItemNumber.Height
+    lblItemName.Left = lblItemNumber.Left + lblItemNumber.width + 6
+    lblItemName.width = 480
+    lblItemName.height = lblItemNumber.height
     lblItemName.WordWrap = False
 
 End Sub
