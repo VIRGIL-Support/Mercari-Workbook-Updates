@@ -97,7 +97,7 @@ Public Sub EmailSupport()
            "Error Message (if any):%0A" & _
            "[Paste any error text here]%0A%0A" & _
            "Workbook Version: " & APP_VERSION & "%0A" & _
-           "Excel Version: " & Application.Version & "%0A%0A" & _
+           "Excel Version: " & Application.VERSION & "%0A%0A" & _
            "I've attached the ErrorLog.txt file from the Logs folder.%0A%0A" & _
            "Thanks!"
     
