@@ -17,7 +17,7 @@ End Function
 
 Public Function GetLastRow(ws As Worksheet, columnNumber As Long) As Long
 
-    GetLastRow = ws.Cells(ws.Rows.Count, columnNumber).End(xlUp).Row
+    GetLastRow = ws.Cells(ws.Rows.Count, columnNumber).End(xlUp).row
 
 End Function
 
@@ -33,7 +33,7 @@ Public Function GetSettingValue(settingName As String) As String
 
     Set wsSettings = ThisWorkbook.Sheets(WS_SETTINGS)
 
-    lastRow = wsSettings.Cells(wsSettings.Rows.Count, 1).End(xlUp).Row
+    lastRow = wsSettings.Cells(wsSettings.Rows.Count, 1).End(xlUp).row
 
     For i = 2 To lastRow
 
@@ -62,7 +62,7 @@ Public Sub SetSettingValue(settingName As String, settingValue As String)
 
     Set wsSettings = ThisWorkbook.Sheets(WS_SETTINGS)
 
-    lastRow = wsSettings.Cells(wsSettings.Rows.Count, 1).End(xlUp).Row
+    lastRow = wsSettings.Cells(wsSettings.Rows.Count, 1).End(xlUp).row
 
     For i = 2 To lastRow
 
