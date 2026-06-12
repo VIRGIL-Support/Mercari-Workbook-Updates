@@ -2,6 +2,56 @@ Attribute VB_Name = "modInventory"
 Option Explicit
 
 ' =====================================================
+' PROTECT INVENTORY WORKSHEET (LOCK COLUMNS BUT ALLOW BUTTONS)
+' =====================================================
+
+Public Sub ProtectInventoryWorksheet()
+    Dim ws As Worksheet
+    
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(WS_INVENTORY)
+    On Error GoTo 0
+    
+    If ws Is Nothing Then Exit Sub
+    
+    ' Unprotect first (in case already protected)
+    ws.Unprotect Password:=""
+    
+    ' Protect with specific settings:
+    ' - UserInterfaceOnly=True: macros can still modify
+    ' - AllowFormattingColumns=False: prevent column resizing
+    ' - AllowFiltering=True: allow filtering if needed
+    ' - AllowSorting=True: allow sorting
+    ' - AllowUsingPivotTables=True
+    ws.Protect Password:="", _
+                 UserInterfaceOnly:=True, _
+                 AllowFormattingColumns:=False, _
+                 AllowFormattingRows:=False, _
+                 AllowInsertingColumns:=False, _
+                 AllowInsertingRows:=False, _
+                 AllowDeletingColumns:=False, _
+                 AllowDeletingRows:=False, _
+                 AllowSorting:=True, _
+                 AllowFiltering:=True, _
+                 AllowUsingPivotTables:=True
+    
+    ' Note: Shapes (buttons) remain clickable because they have OnAction macros
+    ' and UserInterfaceOnly allows macro execution
+    
+End Sub
+
+Public Sub UnprotectInventoryWorksheet()
+    Dim ws As Worksheet
+    
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(WS_INVENTORY)
+    On Error GoTo 0
+    
+    If Not ws Is Nothing Then ws.Unprotect Password:=""
+    
+End Sub
+
+' =====================================================
 ' FONT AVAILABILITY CHECK
 ' =====================================================
 
@@ -194,7 +244,7 @@ Private Sub EnsureOnePendingInventoryRow()
 
     Set ws = ThisWorkbook.Sheets(WS_INVENTORY)
 
-    For rowNum = 2 To ws.Cells(ws.Rows.Count, COL_ITEM_NUMBER).End(xlUp).Row
+    For rowNum = 2 To ws.Cells(ws.Rows.Count, COL_ITEM_NUMBER).End(xlUp).row
         If Not IsRetiredInventoryRow(ws, rowNum) And _
            Trim$(CStr(ws.Cells(rowNum, COL_ITEM_NUMBER).Value)) <> "" And _
            Trim$(CStr(ws.Cells(rowNum, COL_ITEM_NAME).Value)) = "" And _
@@ -225,7 +275,7 @@ Public Function GetNextItemNumber() As String
 
     Set ws = ThisWorkbook.Sheets(WS_INVENTORY)
 
-    lastRow = ws.Cells(ws.Rows.Count, COL_ITEM_NUMBER).End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.Count, COL_ITEM_NUMBER).End(xlUp).row
     For rowNum = 2 To lastRow
         itemValue = Trim$(CStr(ws.Cells(rowNum, COL_ITEM_NUMBER).Value))
         If InStr(itemValue, "-") > 0 And _
@@ -241,7 +291,7 @@ Public Function GetNextItemNumber() As String
     Set wsSold = ThisWorkbook.Worksheets(WS_SOLD_ITEMS)
     On Error GoTo 0
     If Not wsSold Is Nothing Then
-        lastRow = wsSold.Cells(wsSold.Rows.Count, 1).End(xlUp).Row
+        lastRow = wsSold.Cells(wsSold.Rows.Count, 1).End(xlUp).row
         For rowNum = 2 To lastRow
             itemValue = Trim$(CStr(wsSold.Cells(rowNum, 1).Value))
             If InStr(itemValue, "-") > 0 Then
@@ -388,11 +438,13 @@ Public Function CreateButton(ws As Worksheet, _
     On Error GoTo 0
 
     btnHeight = 20
-
-    btnLeft = ws.Cells(rowNum, colNum).Left + 5
-    btnTop = ws.Cells(rowNum, colNum).Top + 3
-    btnWidth = ws.Cells(rowNum, colNum).Width - 10
-    If btnWidth < 20 Then btnWidth = 20
+    btnWidth = 100
+    
+    ' Center button within cell (row height = 25, cell width varies by column)
+    ' Vertical center: (25 - 20) / 2 = 2.5
+    ' Horizontal center: (cell width - button width) / 2
+    btnLeft = ws.Cells(rowNum, colNum).Left + ((ws.Cells(rowNum, colNum).width - btnWidth) / 2)
+    btnTop = ws.Cells(rowNum, colNum).Top + 2.5
 
     Set shp = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
 
@@ -416,26 +468,33 @@ Public Function CreateButton(ws As Worksheet, _
 
         Select Case UCase$(buttonText)
             Case "START"
-                fillColor = RGB(61, 191, 140)
-                borderColor = RGB(42, 143, 101)
+                ' Emerald #27AE60
+                fillColor = RGB(39, 174, 96)
+                borderColor = RGB(26, 130, 69)
             Case "EDIT"
-                fillColor = RGB(224, 123, 58)
-                borderColor = RGB(184, 88, 32)
+                ' Orange #E8622A
+                fillColor = RGB(232, 98, 42)
+                borderColor = RGB(184, 72, 24)
             Case "COPY FOR AI"
-                fillColor = RGB(61, 191, 140)
-                borderColor = RGB(42, 143, 101)
+                ' Emerald #27AE60 (initial state)
+                fillColor = RGB(39, 174, 96)
+                borderColor = RGB(26, 130, 69)
             Case "PASTE DETAILS"
-                fillColor = RGB(255, 184, 0)
-                borderColor = RGB(204, 146, 0)
+                ' Emerald #27AE60 (initial state)
+                fillColor = RGB(39, 174, 96)
+                borderColor = RGB(26, 130, 69)
             Case "VIEW ITEM DETAILS", "VIEW ITEM FOLDER", "VIEW ALL FOLDERS"
-                fillColor = RGB(255, 184, 0)
-                borderColor = RGB(204, 146, 0)
+                ' Amber #F5A623
+                fillColor = RGB(245, 166, 35)
+                borderColor = RGB(196, 123, 10)
             Case "READY TO LIST"
-                fillColor = RGB(61, 191, 140)
-                borderColor = RGB(42, 143, 101)
+                ' Emerald #27AE60
+                fillColor = RGB(39, 174, 96)
+                borderColor = RGB(26, 130, 69)
             Case "LIST ANOTHER"
-                fillColor = RGB(61, 191, 140)
-                borderColor = RGB(42, 143, 101)
+                ' Emerald #27AE60
+                fillColor = RGB(39, 174, 96)
+                borderColor = RGB(26, 130, 69)
             Case "VIEW ALL SOLD"
                 fillColor = RGB(229, 234, 240)
                 borderColor = RGB(196, 206, 219)
@@ -548,6 +607,8 @@ End Sub
 
 Private Sub DeleteAllButtonsOnWorksheet(ByVal ws As Worksheet)
 
+    On Error Resume Next
+    
     Dim shp As Shape
     Dim shapeIndex As Long
 
@@ -555,6 +616,8 @@ Private Sub DeleteAllButtonsOnWorksheet(ByVal ws As Worksheet)
         Set shp = ws.Shapes(shapeIndex)
         If Left$(shp.Name, 4) = "BTN_" Then shp.Delete
     Next shapeIndex
+    
+    On Error GoTo 0
 
 End Sub
 
@@ -563,13 +626,29 @@ Private Sub ResetInventoryWorksheet()
     Dim ws As Worksheet
 
     Set ws = ThisWorkbook.Sheets(WS_INVENTORY)
+    
+    ' Delete all buttons
     DeleteAllButtonsOnWorksheet ws
+    
+    ' Unhide ALL rows (including empty ones) - must do this BEFORE clearing
+    ws.Rows("2:" & ws.Rows.Count).Hidden = False
+    
+    ' Reset row backgrounds to white
+    ws.Rows("2:" & ws.Rows.Count).Interior.Color = RGB(255, 255, 255)
+    ws.Rows("2:" & ws.Rows.Count).Interior.ColorIndex = xlNone
+    
+    ' Clear all data rows
     ws.Rows("2:" & ws.Rows.Count).Clear
-    ws.Range("A2:K2").Clear
+    
+    ' Set up first empty row with just the item number
+    ' NO status text, NO button - button appears only when user types in Column B
     ws.Cells(2, COL_ITEM_NUMBER).Value = "100-001"
-    ws.Cells(2, COL_STATUS).Value = STATUS_NEW
-    CreateStartButton 2
-    ApplyDateSoldValidation
+    
+    ' Apply all formatting including validation, column widths, and protection
+    ApplyColumnFormatting
+    
+    ' Apply new alternating row colors (Light/Pale tint scheme)
+    RefreshRowColorsAfterChange
 
 End Sub
 
@@ -578,10 +657,16 @@ Private Sub ResetSoldItemsWorksheet()
     Dim ws As Worksheet
 
     Set ws = GetSoldItemsWorksheet()
+    
+    ' Unprotect to allow clearing
+    On Error Resume Next
+    ws.Unprotect Password:=""
+    On Error GoTo 0
+    
     DeleteAllButtonsOnWorksheet ws
     ws.Rows("2:" & ws.Rows.Count).Clear
     ws.Columns("K:N").Hidden = True
-    ws.Columns("A:J").AutoFit
+    ' Note: Column widths are set in GetSoldItemsWorksheet, no AutoFit needed
 
 End Sub
 
@@ -633,19 +718,90 @@ End Sub
 Public Sub ApplyColumnFormatting()
     Dim wsInv As Worksheet
     Dim wsSold As Worksheet
+    Dim row As Long
     
     On Error Resume Next
     Set wsInv = ThisWorkbook.Worksheets(WS_INVENTORY)
     Set wsSold = ThisWorkbook.Worksheets(WS_SOLD_ITEMS)
     
     If Not wsInv Is Nothing Then
+        ' === ROW HEIGHTS ===
+        ' All rows height = 25
+        wsInv.Rows.RowHeight = 25
+        
+        ' === COLUMN WIDTHS ===
+        ' Column A = 15
+        wsInv.Columns("A").ColumnWidth = 15
+        ' Column B = 50
+        wsInv.Columns("B").ColumnWidth = 50
+        ' Columns C, D = 16 each
+        wsInv.Columns("C").ColumnWidth = 16
+        wsInv.Columns("D").ColumnWidth = 16
+        ' Columns E, F, G, H, I, J, K = 20 each
+        wsInv.Columns("E").ColumnWidth = 20
+        wsInv.Columns("F").ColumnWidth = 20
+        wsInv.Columns("G").ColumnWidth = 20
+        wsInv.Columns("H").ColumnWidth = 20
+        wsInv.Columns("I").ColumnWidth = 20
+        wsInv.Columns("J").ColumnWidth = 20
+        wsInv.Columns("K").ColumnWidth = 20
+        
+        ' === TEXT FORMATTING ===
+        ' Column B: wrap text, left justified, vertical center
+        wsInv.Columns("B").WrapText = True
+        wsInv.Columns("B").HorizontalAlignment = xlLeft
+        wsInv.Columns("B").VerticalAlignment = xlVAlignCenter
+        
+        ' Columns A, C, D: horizontal center, vertical center
         wsInv.Columns("A").HorizontalAlignment = xlCenter
+        wsInv.Columns("A").VerticalAlignment = xlVAlignCenter
         wsInv.Columns("C").HorizontalAlignment = xlCenter
+        wsInv.Columns("C").VerticalAlignment = xlVAlignCenter
         wsInv.Columns("C").NumberFormat = "$#,##0.00"
         wsInv.Columns("D").HorizontalAlignment = xlCenter
+        wsInv.Columns("D").VerticalAlignment = xlVAlignCenter
+        
+        ' Row 1: centered text, Mercari brand color
+        wsInv.Rows(1).HorizontalAlignment = xlCenter
+        wsInv.Rows(1).VerticalAlignment = xlVAlignCenter
+        wsInv.Rows(1).Interior.Color = RGB(94, 109, 242)
+        wsInv.Rows(1).Font.Color = RGB(255, 255, 255)
+        wsInv.Rows(1).Font.Bold = True
+        
+        ' === LOCKING ===
+        ' Unprotect first to allow formatting changes
+        wsInv.Unprotect Password:=""
+        
+        ' Apply date sold validation BEFORE locking (so it works properly)
+        ApplyDateSoldValidationToRange wsInv
+        
+        ' Lock all cells by default
+        wsInv.Cells.Locked = True
+        
+        ' Unlock columns A-D for data entry
+        wsInv.Columns("A").Locked = False
+        wsInv.Columns("B").Locked = False
+        wsInv.Columns("C").Locked = False
+        wsInv.Columns("D").Locked = False
+        
+        ' Columns E-K remain locked (cannot resize, buttons cannot move)
+        ' Rows remain locked (cannot resize height)
+        
+        ' Protect with specific settings
+        wsInv.Protect Password:="", _
+                     UserInterfaceOnly:=True, _
+                     AllowFormattingColumns:=False, _
+                     AllowFormattingRows:=False, _
+                     AllowInsertingColumns:=False, _
+                     AllowInsertingRows:=False, _
+                     AllowDeletingColumns:=False, _
+                     AllowDeletingRows:=False, _
+                     AllowSorting:=True, _
+                     AllowFiltering:=True
     End If
     
     If Not wsSold Is Nothing Then
+        wsSold.Rows.RowHeight = 25
         wsSold.Columns("A").HorizontalAlignment = xlCenter
         wsSold.Columns("C").HorizontalAlignment = xlCenter
         wsSold.Columns("C").NumberFormat = "$#,##0.00"
@@ -666,12 +822,13 @@ Private Function GetSoldItemsWorksheet() As Worksheet
     End If
 
     If Trim$(CStr(GetSoldItemsWorksheet.Cells(1, 1).Value)) = "" Then
+        ' === HEADERS ===
         GetSoldItemsWorksheet.Cells(1, 1).Value = "ITEM NUMBER"
         GetSoldItemsWorksheet.Cells(1, 2).Value = "ITEM NAME"
         GetSoldItemsWorksheet.Cells(1, 3).Value = "ITEM PRICE"
         GetSoldItemsWorksheet.Cells(1, 4).Value = "DATE SOLD"
         GetSoldItemsWorksheet.Cells(1, 5).Value = "EDIT"
-        GetSoldItemsWorksheet.Cells(1, 6).Value = "SELL ANOTHER"
+        GetSoldItemsWorksheet.Cells(1, 6).Value = "RELIST"
         GetSoldItemsWorksheet.Cells(1, 7).Value = "VIEW ITEM DETAILS"
         GetSoldItemsWorksheet.Cells(1, 8).Value = "VIEW ITEM FOLDER"
         GetSoldItemsWorksheet.Cells(1, 9).Value = "VIEW ALL SOLD"
@@ -680,21 +837,107 @@ Private Function GetSoldItemsWorksheet() As Worksheet
         GetSoldItemsWorksheet.Cells(1, 12).Value = "DETAILS PATH"
         GetSoldItemsWorksheet.Cells(1, 13).Value = "ITEM FOLDER PATH"
         GetSoldItemsWorksheet.Cells(1, 14).Value = "ALL SOLD PATH"
-        GetSoldItemsWorksheet.Rows(1).Font.Bold = True
-        GetSoldItemsWorksheet.Columns(2).ColumnWidth = 40
-        GetSoldItemsWorksheet.Columns(3).ColumnWidth = 16
-        GetSoldItemsWorksheet.Columns(4).ColumnWidth = 16
-        GetSoldItemsWorksheet.Columns(5).ColumnWidth = 20
-        GetSoldItemsWorksheet.Columns(6).ColumnWidth = 20
-        GetSoldItemsWorksheet.Columns(7).ColumnWidth = 20
-        GetSoldItemsWorksheet.Columns(8).ColumnWidth = 20
-        GetSoldItemsWorksheet.Columns(9).ColumnWidth = 20
-        GetSoldItemsWorksheet.Columns(10).ColumnWidth = 20
-        GetSoldItemsWorksheet.Columns("E").Hidden = True
-        GetSoldItemsWorksheet.Columns("K:N").Hidden = True
+        
+        Dim wsSold As Worksheet
+        Set wsSold = GetSoldItemsWorksheet
+        
+        ' === ROW HEIGHTS ===
+        ' All rows height = 25
+        wsSold.Rows.RowHeight = 25
+        
+        ' === COLUMN WIDTHS ===
+        ' Column A = 15
+        wsSold.Columns("A").ColumnWidth = 15
+        ' Column B = 50
+        wsSold.Columns("B").ColumnWidth = 50
+        ' Columns C, D = 16 each
+        wsSold.Columns("C").ColumnWidth = 16
+        wsSold.Columns("D").ColumnWidth = 16
+        ' Columns F, G, H, I = 20 each
+        wsSold.Columns("F").ColumnWidth = 20
+        wsSold.Columns("G").ColumnWidth = 20
+        wsSold.Columns("H").ColumnWidth = 20
+        wsSold.Columns("I").ColumnWidth = 20
+        
+        ' === TEXT FORMATTING ===
+        ' Row 1: Centered horizontally and vertically, bold
+        wsSold.Rows(1).HorizontalAlignment = xlCenter
+        wsSold.Rows(1).VerticalAlignment = xlVAlignCenter
+        wsSold.Rows(1).Font.Bold = True
+        
+        ' Columns A-D: Vertical center for all rows
+        wsSold.Columns("A").VerticalAlignment = xlVAlignCenter
+        wsSold.Columns("B").VerticalAlignment = xlVAlignCenter
+        wsSold.Columns("C").VerticalAlignment = xlVAlignCenter
+        wsSold.Columns("D").VerticalAlignment = xlVAlignCenter
+        
+        ' Column B: Left justified, wrap text
+        wsSold.Columns("B").HorizontalAlignment = xlLeft
+        wsSold.Columns("B").WrapText = True
+        
+        ' Columns A, C, D: Horizontally centered
+        wsSold.Columns("A").HorizontalAlignment = xlCenter
+        wsSold.Columns("C").HorizontalAlignment = xlCenter
+        wsSold.Columns("D").HorizontalAlignment = xlCenter
+        
+        ' === LOCKING ===
+        ' Unprotect first to allow formatting changes
+        wsSold.Unprotect Password:=""
+        
+        ' Lock all cells by default
+        wsSold.Cells.Locked = True
+        
+        ' Unlock columns A-E for data entry (A-D data, E is hidden but editable)
+        wsSold.Columns("A").Locked = False
+        wsSold.Columns("B").Locked = False
+        wsSold.Columns("C").Locked = False
+        wsSold.Columns("D").Locked = False
+        wsSold.Columns("E").Locked = False
+        
+        ' Columns F-I remain locked (cannot resize, buttons cannot move)
+        ' Rows remain locked (cannot resize height)
+        
+        ' Protect with specific settings
+        wsSold.Protect Password:="", _
+                     UserInterfaceOnly:=True, _
+                     AllowFormattingColumns:=False, _
+                     AllowFormattingRows:=False, _
+                     AllowInsertingColumns:=False, _
+                     AllowInsertingRows:=False, _
+                     AllowDeletingColumns:=False, _
+                     AllowDeletingRows:=False, _
+                     AllowSorting:=True, _
+                     AllowFiltering:=True
+        
+        ' Hide columns
+        wsSold.Columns("E").Hidden = True
+        wsSold.Columns("K:N").Hidden = True
     End If
 
 End Function
+
+Private Sub ApplySoldItemsRowFormatting(ByVal wsSold As Worksheet, ByVal soldRow As Long)
+    ' Applies formatting to a specific row in SOLD ITEMS worksheet
+    
+    ' Row height = 25
+    wsSold.Rows(soldRow).RowHeight = 25
+    
+    ' Columns A-D: Vertical center
+    wsSold.Cells(soldRow, 1).VerticalAlignment = xlVAlignCenter
+    wsSold.Cells(soldRow, 2).VerticalAlignment = xlVAlignCenter
+    wsSold.Cells(soldRow, 3).VerticalAlignment = xlVAlignCenter
+    wsSold.Cells(soldRow, 4).VerticalAlignment = xlVAlignCenter
+    
+    ' Column B: Left justified, wrap text
+    wsSold.Cells(soldRow, 2).HorizontalAlignment = xlLeft
+    wsSold.Cells(soldRow, 2).WrapText = True
+    
+    ' Columns A, C, D: Horizontally centered
+    wsSold.Cells(soldRow, 1).HorizontalAlignment = xlCenter
+    wsSold.Cells(soldRow, 3).HorizontalAlignment = xlCenter
+    wsSold.Cells(soldRow, 4).HorizontalAlignment = xlCenter
+    
+End Sub
 
 Private Function GetSoldDataWorksheet() As Worksheet
 
@@ -811,23 +1054,73 @@ End Function
 
 Private Function AddSoldButton(ByVal ws As Worksheet, ByVal rowNum As Long, ByVal colNum As Long, ByVal buttonName As String, ByVal buttonText As String, ByVal macroName As String, Optional ByVal greenButton As Boolean = False) As Shape
 
-    Set AddSoldButton = CreateButton(ws, rowNum, colNum, buttonName, buttonText, macroName)
+    Dim shp As Shape
+    Dim btnLeft As Double
+    Dim btnTop As Double
+    Dim btnWidth As Double
+    Dim btnHeight As Double
+    Dim fillColor As Long
+    Dim borderColor As Long
+    Dim fontColor As Long
     
+    ' Match INVENTORY worksheet button sizing exactly
+    btnHeight = 20
+    btnLeft = ws.Cells(rowNum, colNum).Left + 5
+    btnTop = ws.Cells(rowNum, colNum).Top + 3
+    btnWidth = ws.Cells(rowNum, colNum).Width - 10
+    If btnWidth < 20 Then btnWidth = 20
+    
+    ' Delete existing button
+    On Error Resume Next
+    ws.Shapes(buttonName).Delete
+    On Error GoTo 0
+    
+    Set shp = ws.Shapes.AddShape(msoShapeRoundedRectangle, btnLeft, btnTop, btnWidth, btnHeight)
+    
+    ' Set colors based on button type
     Select Case UCase$(buttonText)
         Case "EDIT"
-            AddSoldButton.Fill.ForeColor.RGB = RGB(229, 234, 240)
-            AddSoldButton.Line.ForeColor.RGB = RGB(196, 206, 219)
-            AddSoldButton.TextFrame.Characters.Font.Color = RGB(153, 153, 153)
-        Case "LIST ANOTHER"
-            AddSoldButton.Fill.ForeColor.RGB = RGB(61, 191, 140)
-            AddSoldButton.Line.ForeColor.RGB = RGB(42, 143, 101)
-            AddSoldButton.TextFrame.Characters.Font.Color = RGB(255, 255, 255)
-            AddSoldButton.TextFrame.Characters.Font.Bold = True
+            fillColor = RGB(229, 234, 240)
+            borderColor = RGB(196, 206, 219)
+            fontColor = RGB(153, 153, 153)
+        Case "RELIST"
+            ' Emerald #27AE60 with border #1A8245
+            fillColor = RGB(39, 174, 96)
+            borderColor = RGB(26, 130, 69)
+            fontColor = RGB(255, 255, 255)
         Case "VIEW ITEM DETAILS", "VIEW ITEM FOLDER", "VIEW ALL SOLD"
-            AddSoldButton.Fill.ForeColor.RGB = RGB(229, 234, 240)
-            AddSoldButton.Line.ForeColor.RGB = RGB(196, 206, 219)
-            AddSoldButton.TextFrame.Characters.Font.Color = RGB(153, 153, 153)
+            ' Light gray #F4F4F4 with text/border #888888
+            fillColor = RGB(244, 244, 244)
+            borderColor = RGB(136, 136, 136)
+            fontColor = RGB(136, 136, 136)
+        Case Else
+            fillColor = RGB(92, 127, 168)
+            borderColor = RGB(61, 95, 130)
+            fontColor = RGB(255, 255, 255)
     End Select
+    
+    With shp
+        .Name = buttonName
+        .TextFrame.Characters.text = buttonText
+        .TextFrame.HorizontalAlignment = xlHAlignCenter
+        .TextFrame.VerticalAlignment = xlVAlignCenter
+        .TextFrame.MarginLeft = 2
+        .TextFrame.MarginRight = 2
+        .TextFrame.MarginTop = 1
+        .TextFrame.MarginBottom = 1
+        .OnAction = macroName
+        .Placement = xlMoveAndSize
+        
+        .Fill.Visible = msoTrue
+        .Fill.ForeColor.RGB = fillColor
+        .Line.Visible = msoTrue
+        .Line.ForeColor.RGB = borderColor
+        .Line.Weight = 1.25
+        .TextFrame.Characters.Font.Color = fontColor
+        .TextFrame.Characters.Font.Bold = True
+    End With
+    
+    Set AddSoldButton = shp
 
 End Function
 
@@ -837,17 +1130,21 @@ Private Sub CreateSoldItemsButtons(ByVal soldRow As Long)
 
     Set wsSold = ThisWorkbook.Worksheets(WS_SOLD_ITEMS)
     
-    AddSoldButton wsSold, soldRow, 5, "BTN_SOLD_EDIT_" & soldRow, "EDIT", "SoldEditButtonClick"
-    AddSoldButton wsSold, soldRow, 6, "BTN_SELL_ANOTHER_" & soldRow, "LIST ANOTHER", "SellAnotherButtonClick", True
+    ' Column E (5) - Hidden column, no button
+    ' Column F (6) - RELIST button (emerald green)
+    AddSoldButton wsSold, soldRow, 6, "BTN_RELIST_" & soldRow, "RELIST", "SellAnotherButtonClick", True
+    ' Column G (7) - VIEW ITEM DETAILS button (light gray)
     AddSoldButton wsSold, soldRow, 7, "BTN_SOLD_DETAILS_" & soldRow, "VIEW ITEM DETAILS", "SoldViewDetailsButtonClick"
+    ' Column H (8) - VIEW ITEM FOLDER button (light gray)
     AddSoldButton wsSold, soldRow, 8, "BTN_SOLD_FOLDER_" & soldRow, "VIEW ITEM FOLDER", "SoldViewFolderButtonClick"
+    ' Column I (9) - VIEW ALL SOLD button (light gray)
     AddSoldButton wsSold, soldRow, 9, "BTN_ALL_SOLD_" & soldRow, "VIEW ALL SOLD", "SoldViewAllButtonClick"
 
 End Sub
 
 Private Function NextSoldItemsRow(ByVal wsSold As Worksheet) As Long
 
-    NextSoldItemsRow = wsSold.Cells(wsSold.Rows.Count, 1).End(xlUp).Row + 1
+    NextSoldItemsRow = wsSold.Cells(wsSold.Rows.Count, 1).End(xlUp).row + 1
     If NextSoldItemsRow < 2 Then NextSoldItemsRow = 2
 
 End Function
@@ -890,9 +1187,18 @@ Private Sub MoveInventoryRowToSoldItems(ByVal inventoryRow As Long, ByVal wsSold
 
     wsSold.Cells(soldRow, 4).NumberFormat = "m/d/yyyy"
     
+    ' Apply alternating gray row colors
+    ' Darker gray RGB(217, 217, 217) for odd rows, lighter gray RGB(238, 238, 238) for even rows
+    Dim rowColor As Long
+    If soldRow Mod 2 = 1 Then
+        rowColor = RGB(217, 217, 217)  ' Darker gray
+    Else
+        rowColor = RGB(238, 238, 238)  ' Lighter gray
+    End If
+    
     Dim colIdx As Long
     For colIdx = 1 To 10
-        wsSold.Cells(soldRow, colIdx).Interior.Color = RGB(217, 217, 217)
+        wsSold.Cells(soldRow, colIdx).Interior.Color = rowColor
         wsSold.Cells(soldRow, colIdx).Font.Color = RGB(153, 153, 153)
     Next colIdx
     
@@ -901,7 +1207,9 @@ Private Sub MoveInventoryRowToSoldItems(ByVal inventoryRow As Long, ByVal wsSold
     wsSold.Cells(soldRow, 10).VerticalAlignment = xlCenter
     wsSold.Columns("E").Hidden = True
     CreateSoldItemsButtons soldRow
-    ApplyColumnFormatting
+    
+    ' Apply SOLD ITEMS specific formatting for this row
+    ApplySoldItemsRowFormatting wsSold, soldRow
 
     RetireInventoryRow inventoryRow
 
@@ -915,36 +1223,76 @@ Public Function ProcessSoldItemsOnClose() As Long
     Dim wsSold As Worksheet
     Dim lastRow As Long
     Dim rowNum As Long
+    Dim cellValue As Variant
 
     Set wsInventory = ThisWorkbook.Sheets(WS_INVENTORY)
     Set wsSold = GetSoldItemsWorksheet()
+    
+    ' Unprotect SOLD ITEMS to allow adding rows
+    On Error Resume Next
+    wsSold.Unprotect Password:=""
+    On Error GoTo 0
 
-    lastRow = wsInventory.Cells(wsInventory.Rows.Count, COL_ITEM_NUMBER).End(xlUp).Row
+    lastRow = wsInventory.Cells(wsInventory.Rows.Count, COL_ITEM_NUMBER).End(xlUp).row
 
     For rowNum = lastRow To 2 Step -1
-        If IsValidSoldDateValue(wsInventory.Cells(rowNum, COL_DATE_SOLD).Value) Then
+        cellValue = wsInventory.Cells(rowNum, COL_DATE_SOLD).Value
+        If IsValidSoldDateValue(cellValue) Then
             MoveInventoryRowToSoldItems rowNum, wsSold
             ProcessSoldItemsOnClose = ProcessSoldItemsOnClose + 1
         End If
     Next rowNum
 
     If ProcessSoldItemsOnClose > 0 Then
-        wsSold.Columns(2).ColumnWidth = 40
-        wsSold.Columns(3).ColumnWidth = 16
-        wsSold.Columns(4).ColumnWidth = 16
-        wsSold.Columns(5).ColumnWidth = 20
-        wsSold.Columns(6).ColumnWidth = 20
-        wsSold.Columns(7).ColumnWidth = 20
-        wsSold.Columns(8).ColumnWidth = 20
-        wsSold.Columns(9).ColumnWidth = 20
-        wsSold.Columns(10).ColumnWidth = 20
+        ' Column widths: A=15, B=50, C=16, D=16, F=20, G=20, H=20, I=20
+        wsSold.Columns("A").ColumnWidth = 15
+        wsSold.Columns("B").ColumnWidth = 50
+        wsSold.Columns("C").ColumnWidth = 16
+        wsSold.Columns("D").ColumnWidth = 16
+        wsSold.Columns("F").ColumnWidth = 20
+        wsSold.Columns("G").ColumnWidth = 20
+        wsSold.Columns("H").ColumnWidth = 20
+        wsSold.Columns("I").ColumnWidth = 20
         wsSold.Columns("E").Hidden = True
         wsSold.Columns("K:N").Hidden = True
+        
+        ' All row heights = 25
+        wsSold.Rows.RowHeight = 25
+        
+        ' Row 1 formatting: centered, bold
+        wsSold.Rows(1).HorizontalAlignment = xlCenter
+        wsSold.Rows(1).VerticalAlignment = xlVAlignCenter
+        wsSold.Rows(1).Font.Bold = True
+        
+        ' Lock columns F-I and all rows
+        wsSold.Unprotect Password:=""
+        wsSold.Cells.Locked = True
+        wsSold.Columns("A").Locked = False
+        wsSold.Columns("B").Locked = False
+        wsSold.Columns("C").Locked = False
+        wsSold.Columns("D").Locked = False
+        wsSold.Columns("E").Locked = False
+        wsSold.Protect Password:="", _
+                     UserInterfaceOnly:=True, _
+                     AllowFormattingColumns:=False, _
+                     AllowFormattingRows:=False, _
+                     AllowInsertingColumns:=False, _
+                     AllowInsertingRows:=False, _
+                     AllowDeletingColumns:=False, _
+                     AllowDeletingRows:=False, _
+                     AllowSorting:=True, _
+                     AllowFiltering:=True
+        
         EnsureOnePendingInventoryRow
     End If
     
     ' Refresh alternating row colors after processing sold items
     RefreshRowColorsAfterChange
+    
+    ' Show popup if items were moved
+    If ProcessSoldItemsOnClose > 0 Then
+        MsgBox CStr(ProcessSoldItemsOnClose) & " item(s) have been moved to the SOLD ITEMS worksheet.", vbInformation, "Items Sold"
+    End If
 
     Exit Function
 
@@ -963,13 +1311,14 @@ Public Sub ApplyDateSoldValidation()
     Set ws = ThisWorkbook.Sheets(WS_INVENTORY)
     Set validationRange = ws.Range(ws.Cells(2, COL_DATE_SOLD), ws.Cells(ws.Rows.Count, COL_DATE_SOLD))
 
+    ' Clear any existing validation
     validationRange.Validation.Delete
-    validationRange.Validation.Add Type:=xlValidateDate, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:="1/1/2000", Formula2:="12/31/2099"
-    validationRange.Validation.IgnoreBlank = True
+    
+    ' Add informational message only (no validation restriction)
+    ' This allows any text input while still showing helpful popup
+    validationRange.Validation.Add Type:=xlValidateInputOnly
     validationRange.Validation.InputTitle = "Date Sold"
     validationRange.Validation.InputMessage = "Enter the sold date in any normal Excel date format." & vbCrLf & vbCrLf & "Examples: 5/18/26, May 18, 18-May, or 18-May-2026." & vbCrLf & vbCrLf & "Excel will reformat it after entry. Leave blank if the item has not sold."
-    validationRange.Validation.ErrorTitle = "Oops! Sold Date Incorrect"
-    validationRange.Validation.ErrorMessage = "Please enter the date sold using any date format." & vbCrLf & vbCrLf & "Examples that work: 5/18/26, May 18, 18-May, or 18-May-2026." & vbCrLf & vbCrLf & "Leave the cell blank if this item has not sold yet."
 
     MsgBox "Date Sold validation has been applied to the Inventory worksheet.", vbInformation
     Exit Sub
@@ -977,6 +1326,32 @@ Public Sub ApplyDateSoldValidation()
 ErrorHandler:
     HandleError "ApplyDateSoldValidation", Err.Number, Err.Description
 
+End Sub
+
+Private Sub ApplyDateSoldValidationToRange(ByVal ws As Worksheet)
+    ' Applies date sold validation to column D without showing MsgBox
+    ' Called internally from ApplyColumnFormatting
+    
+    On Error GoTo ErrorHandler
+    
+    Dim validationRange As Range
+    Set validationRange = ws.Range(ws.Cells(2, COL_DATE_SOLD), ws.Cells(ws.Rows.Count, COL_DATE_SOLD))
+    
+    ' Clear any existing validation
+    validationRange.Validation.Delete
+    
+    ' Add informational message only (no validation restriction)
+    ' This allows any text input while still showing helpful popup
+    validationRange.Validation.Add Type:=xlValidateInputOnly
+    validationRange.Validation.InputTitle = "Date Sold"
+    validationRange.Validation.InputMessage = "Enter the sold date in any normal Excel date format." & vbCrLf & vbCrLf & "Examples: 5/18/26, May 18, 18-May, or 18-May-2026." & vbCrLf & vbCrLf & "Excel will reformat it after entry. Leave blank if the item has not sold."
+    
+    Exit Sub
+    
+ErrorHandler:
+    ' Silent error handling for internal use
+    Debug.Print "Error in ApplyDateSoldValidationToRange: " & Err.Description
+    
 End Sub
 
 ' =====================================================
@@ -995,7 +1370,7 @@ Public Sub StartButtonClick()
 
     Set shp = ws.Shapes(Application.Caller)
 
-    rowNum = shp.TopLeftCell.Row
+    rowNum = shp.TopLeftCell.row
     OpenItemEditor rowNum
 
     CreateEditAndAIButtons rowNum
@@ -1021,7 +1396,7 @@ Public Sub EditButtonClick()
 
     Set ws = ThisWorkbook.Sheets(WS_INVENTORY)
     Set shp = ws.Shapes(Application.Caller)
-    rowNum = shp.TopLeftCell.Row
+    rowNum = shp.TopLeftCell.row
 
     OpenItemEditor rowNum
 
@@ -1058,8 +1433,10 @@ Public Sub CopyForAIButtonClick()
 
     CreateDetailsButton rowNum
     
-    ChangeButtonColor ws, "BTN_AI_" & rowNum, RGB(0, 170, 204), RGB(0, 122, 153)
-    ChangeButtonColor ws, "BTN_DETAILS_" & rowNum, RGB(61, 191, 140), RGB(42, 143, 101)
+    ' COPY FOR AI changes to Steel Blue #3D7BC5 (after click)
+    ChangeButtonColor ws, "BTN_AI_" & rowNum, RGB(61, 123, 197), RGB(42, 90, 158)
+    ' PASTE DETAILS changes to Emerald #27AE60 (active/waiting state)
+    ChangeButtonColor ws, "BTN_DETAILS_" & rowNum, RGB(39, 174, 96), RGB(26, 130, 69)
 
     MsgBox _
         "The AI prompt for your item has been copied to your clipboard." & vbCrLf & vbCrLf & _
@@ -1105,7 +1482,7 @@ Public Sub PasteDetailsButtonClick()
     Set shp = ws.Shapes(Application.Caller)
 
     currentStep = "Read row from button"
-    rowNum = shp.TopLeftCell.Row
+    rowNum = shp.TopLeftCell.row
 
     currentStep = "Check existing details DOCX"
     existingDetailsPath = GetDetailsDocxPathForInventoryRow(rowNum)
@@ -1138,10 +1515,12 @@ Public Sub PasteDetailsButtonClick()
     SetReadyToListStatus rowNum
     
     currentStep = "Change button colors"
-    ChangeButtonColor ws, "BTN_DETAILS_" & rowNum, RGB(92, 127, 168), RGB(61, 95, 130)
-    ChangeButtonColor ws, "BTN_VIEW_DETAILS_" & rowNum, RGB(255, 184, 0), RGB(204, 146, 0)
-    ChangeButtonColor ws, "BTN_FOLDER_" & rowNum, RGB(255, 184, 0), RGB(204, 146, 0)
-    ChangeButtonColor ws, "BTN_ALL_FOLDERS_" & rowNum, RGB(255, 184, 0), RGB(204, 146, 0)
+    ' PASTE DETAILS changes to Rose #C94B8A (completed state)
+    ChangeButtonColor ws, "BTN_DETAILS_" & rowNum, RGB(201, 75, 138), RGB(154, 48, 104)
+    ' VIEW buttons change to Amber #F5A623 (active state)
+    ChangeButtonColor ws, "BTN_VIEW_DETAILS_" & rowNum, RGB(245, 166, 35), RGB(196, 123, 10)
+    ChangeButtonColor ws, "BTN_FOLDER_" & rowNum, RGB(245, 166, 35), RGB(196, 123, 10)
+    ChangeButtonColor ws, "BTN_ALL_FOLDERS_" & rowNum, RGB(245, 166, 35), RGB(196, 123, 10)
 
     currentStep = "Show success message"
     MsgBox _
@@ -1172,7 +1551,7 @@ Public Sub ViewDetailsButtonClick()
 
     Set ws = ThisWorkbook.Sheets(WS_INVENTORY)
     Set shp = ws.Shapes(Application.Caller)
-    rowNum = shp.TopLeftCell.Row
+    rowNum = shp.TopLeftCell.row
     
     itemFolderDocx = GetItemFolderDocxPathForInventoryRow(rowNum)
     If Dir(itemFolderDocx) <> "" Then
@@ -1277,7 +1656,7 @@ Private Function GetCallerRow() As Long
 
     Set ws = ActiveSheet
     Set shp = ws.Shapes(Application.Caller)
-    GetCallerRow = shp.TopLeftCell.Row
+    GetCallerRow = shp.TopLeftCell.row
 
 End Function
 
@@ -1625,17 +2004,19 @@ End Sub
 
 Public Sub ApplyAlternatingRowColors()
     ' Applies alternating row colors to visible rows in INVENTORY sheet
-    ' Last row is always darker blue (#C5C9FA), alternates with lighter blue (#ECEEFF)
+    ' Last row is always Light accent (#C5CBFA), alternates with Pale tint (#EEF0FD)
     
     Dim ws As Worksheet
     Dim lastRow As Long
     Dim row As Long
     Dim visibleRowCount As Long
-    Dim darkerBlue As Long
-    Dim lighterBlue As Long
+    Dim lastRowColor As Long
+    Dim alternatingColor As Long
     
-    darkerBlue = RGB(197, 201, 250)   ' #C5C9FA - darker blue (last row)
-    lighterBlue = RGB(236, 238, 255)  ' #ECEEFF - lighter blue (alternating)
+    ' Light accent #C5CBFA for last row (always)
+    lastRowColor = RGB(197, 203, 250)
+    ' Pale tint #EEF0FD for alternating rows
+    alternatingColor = RGB(238, 240, 253)
     
     On Error Resume Next
     Set ws = ThisWorkbook.Worksheets(WS_INVENTORY)
@@ -1644,7 +2025,7 @@ Public Sub ApplyAlternatingRowColors()
     If ws Is Nothing Then Exit Sub
     
     ' Find last visible row with data in column A (ITEM #)
-    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).row
     
     ' If no data rows (only header), exit
     If lastRow <= 1 Then Exit Sub
@@ -1652,8 +2033,7 @@ Public Sub ApplyAlternatingRowColors()
     ' Clear existing colors from data rows (A to K)
     ws.Range("A2:K" & lastRow).Interior.ColorIndex = xlNone
     
-    ' Count visible rows from bottom and apply alternating pattern
-    ' Last row = darker, 2nd from bottom = lighter, 3rd = darker, etc.
+    ' Count visible rows and apply pattern
     visibleRowCount = 0
     
     For row = lastRow To 2 Step -1
@@ -1661,12 +2041,12 @@ Public Sub ApplyAlternatingRowColors()
         If ws.Rows(row).Hidden = False Then
             visibleRowCount = visibleRowCount + 1
             
-            ' Odd rows from bottom (1, 3, 5...) get darker blue
-            ' Even rows from bottom (2, 4, 6...) get lighter blue
+            ' Odd rows from bottom (1, 3, 5...) get last row color (Light accent)
+            ' Even rows from bottom (2, 4, 6...) get alternating color (Pale tint)
             If visibleRowCount Mod 2 = 1 Then
-                ws.Range("A" & row & ":K" & row).Interior.Color = darkerBlue
+                ws.Range("A" & row & ":K" & row).Interior.Color = lastRowColor
             Else
-                ws.Range("A" & row & ":K" & row).Interior.Color = lighterBlue
+                ws.Range("A" & row & ":K" & row).Interior.Color = alternatingColor
             End If
         End If
     Next row
@@ -1678,4 +2058,84 @@ Public Sub RefreshRowColorsAfterChange()
     Application.ScreenUpdating = False
     ApplyAlternatingRowColors
     Application.ScreenUpdating = True
+End Sub
+
+' =====================================================
+' DEVELOPER: UNHIDE ALL WORKSHEETS
+' =====================================================
+
+Public Sub UnhideAllWorksheets()
+    ' For development use only - unhides all system worksheets
+    
+    On Error Resume Next
+    
+    ThisWorkbook.Worksheets("DATA").Visible = xlSheetVisible
+    ThisWorkbook.Worksheets("LOOKUPS").Visible = xlSheetVisible
+    ThisWorkbook.Worksheets("SETTINGS").Visible = xlSheetVisible
+    ThisWorkbook.Worksheets("TABLES").Visible = xlSheetVisible
+    ThisWorkbook.Worksheets("COPYRIGHT_INFO").Visible = xlSheetVisible
+    ThisWorkbook.Worksheets("SOLD_DATA").Visible = xlSheetVisible
+    
+    On Error GoTo 0
+    
+    MsgBox "All system worksheets are now visible.", vbInformation
+    
+End Sub
+
+' =====================================================
+' STARTUP NAVIGATION
+' =====================================================
+
+Public Sub NavigateToStartupWorksheet()
+    ' Open to INVENTORY if data exists, otherwise WELCOME
+    ' Scroll to top so Row 1 is always visible
+    
+    Dim wsInventory As Worksheet
+    Dim wsTarget As Worksheet
+    Dim lastRow As Long
+    Dim hasData As Boolean
+    Dim i As Long
+    
+    On Error Resume Next
+    Set wsInventory = ThisWorkbook.Worksheets(WS_INVENTORY)
+    On Error GoTo 0
+    
+    If wsInventory Is Nothing Then
+        ' Fallback to WELCOME if INVENTORY not found
+        Set wsTarget = ThisWorkbook.Worksheets(WS_WELCOME)
+        wsTarget.Activate
+        wsTarget.Range("A1").Select
+        ActiveWindow.ScrollRow = 1
+        Exit Sub
+    End If
+    
+    ' Check if there's ANY data in INVENTORY (search all rows for item names in Column B)
+    ' Column A always has item numbers, so we check Column B for actual item data
+    lastRow = wsInventory.Cells(wsInventory.Rows.Count, COL_ITEM_NAME).End(xlUp).row
+    
+    ' Check rows 2 through lastRow for any item name
+    If lastRow >= 2 Then
+        For i = 2 To lastRow
+            If Trim$(CStr(wsInventory.Cells(i, COL_ITEM_NAME).Value)) <> "" Then
+                hasData = True
+                Exit For
+            End If
+        Next i
+    End If
+    
+    ' Navigate based on data presence
+    If hasData Then
+        Set wsTarget = wsInventory
+        wsInventory.Activate
+        ' Select first data row, column A and scroll to top
+        wsInventory.Cells(2, COL_ITEM_NUMBER).Select
+    Else
+        Set wsTarget = ThisWorkbook.Worksheets(WS_WELCOME)
+        wsTarget.Activate
+        wsTarget.Range("A1").Select
+    End If
+    
+    ' Always scroll to top so Row 1 is visible
+    ActiveWindow.ScrollRow = 1
+    
 End Sub
