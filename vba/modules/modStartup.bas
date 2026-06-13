@@ -59,10 +59,10 @@ Public Sub InitializeWorkbook()
 
     If UCase(firstRunValue) <> "YES" Then
 
-        ' Display EULA and get user acceptance
+        ' Display EULA - opens Notepad behind popup, thank-you shown on acceptance
         If Not DisplayEULA() Then
             ' User declined - close workbook without saving
-            MsgBox "You must accept the license agreement to use this software." & vbCrLf & vbCrLf & _
+            MsgBox "You must accept the End User License Agreement (EULA) to use this software." & vbCrLf & vbCrLf & _
                    "The workbook will now close.", vbExclamation, "License Required"
             ThisWorkbook.Close SaveChanges:=False
             Exit Sub
@@ -71,16 +71,13 @@ Public Sub InitializeWorkbook()
         ' Set hidden watermark for copyright tracking
         Call SetHiddenWatermark
 
-        ' Ask about automatic update checking with privacy information
+        ' Ask about automatic update checking (appears after EULA thank-you is dismissed)
         On Error Resume Next
         Call PromptForAutoUpdatePreference
         On Error GoTo 0
 
         ' MARK FIRST RUN COMPLETE
         Call SetSettingValue("FIRST_RUN_COMPLETE", "Yes")
-
-        MsgBox "Thank you for accepting the license agreement!" & vbCrLf & vbCrLf & _
-               "Initial setup completed successfully.", vbInformation
 
     Else
 
