@@ -465,8 +465,46 @@ Public Sub ToggleAutoCheckButtonClick()
         newState = "NO"
         UpdateSetting "AUTO_CHECK_UPDATES", "NO"
         msg = "Automatic update checking is now DISABLED." & vbCrLf & vbCrLf & _
-              "You can still check for updates manually using the 'Check for Updates' button."
+              "You can manually check for updates or re-enable automatic update checking at any time by clicking the applicable button in the HELP worksheet."
     End If
     
     MsgBox msg, vbInformation, "Auto-Check Updates: " & IIf(newState = "YES", "ENABLED", "DISABLED")
+    
+    RefreshAutoCheckButtonLabel
+End Sub
+
+' Updates the toggle button label to reflect the current AUTO_CHECK_UPDATES setting.
+' Call this on workbook open and after any setting change.
+' The button shape on the HELP worksheet must be named "BTN_TOGGLE_AUTOUPDATE"
+Public Sub RefreshAutoCheckButtonLabel()
+    Dim ws As Worksheet
+    Dim btn As Shape
+    Dim current As String
+    
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets("HELP")
+    If ws Is Nothing Then Exit Sub
+    
+    Set btn = ws.Shapes("BTN_TOGGLE_AUTOUPDATE")
+    If btn Is Nothing Then Exit Sub
+    
+    current = GetSettingValue("AUTO_CHECK_UPDATES")
+    
+    Dim labelText As String
+    If UCase(current) = "YES" Then
+        labelText = "Disable Automatic Update Checking"
+    Else
+        labelText = "Enable Automatic Update Checking"
+    End If
+    
+    With btn.TextFrame
+        .Characters.Text = labelText
+        .HorizontalAlignment = xlHAlignCenter
+        .VerticalAlignment = xlVAlignCenter
+        .Characters.Font.Name = "Atkinson Hyperlegible"
+        .Characters.Font.Color = RGB(94, 109, 242)
+        .Characters.Font.Bold = True
+        .Characters.Font.Size = 12
+    End With
+    On Error GoTo 0
 End Sub
