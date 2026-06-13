@@ -7,3 +7,9 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
+
+Private Sub Worksheet_Activate()
+    On Error Resume Next
+    RefreshAutoCheckButtonLabel
+    On Error GoTo 0
+End Sub
