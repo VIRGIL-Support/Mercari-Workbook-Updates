@@ -1113,13 +1113,13 @@ Public Sub PromptForAutoUpdatePreference()
           "PRIVACY & SECURITY INFORMATION:" & vbCrLf & _
           String(40, "-") & vbCrLf & _
           "What is transmitted:" & vbCrLf & _
-          "  • Only your current version number is sent" & vbCrLf & _
-          "  • This is compared to the latest version online" & vbCrLf & vbCrLf & _
+          "  - Only your current version number is sent" & vbCrLf & _
+          "  - This is compared to the latest version online" & vbCrLf & vbCrLf & _
           "What is NOT transmitted:" & vbCrLf & _
-          "  • NO inventory data or item details" & vbCrLf & _
-          "  • NO photos or documents" & vbCrLf & _
-          "  • NO personal information or email addresses" & vbCrLf & _
-          "  • NO sales data or listing information" & vbCrLf & vbCrLf & _
+          "  - NO inventory data or item details" & vbCrLf & _
+          "  - NO photos or documents" & vbCrLf & _
+          "  - NO personal information or email addresses" & vbCrLf & _
+          "  - NO sales data or listing information" & vbCrLf & vbCrLf & _
           "Your data stays 100% on your computer." & vbCrLf & vbCrLf & _
           "Click YES to enable automatic update checks, or NO to check manually only when you choose."
     
@@ -1131,8 +1131,10 @@ Public Sub PromptForAutoUpdatePreference()
                "You can disable this anytime from the HELP worksheet.", vbInformation, "Settings Saved"
     Else
         UpdateSetting "AUTO_CHECK_UPDATES", "NO"
-        MsgBox "Automatic update checking is DISABLED." & vbCrLf & vbCrLf & _
-               "You can still check for updates manually from the HELP worksheet, or re-enable automatic checking anytime.", vbInformation, "Settings Saved"
+        MsgBox "Automatic update checking is now DISABLED." & vbCrLf & vbCrLf & _
+               "Go to the HELP worksheet to:" & vbCrLf & _
+               "  - Check for updates manually anytime" & vbCrLf & _
+               "  - Re-enable automatic update checking whenever you want", vbInformation, "Settings Saved"
     End If
     
 End Sub
@@ -1167,9 +1169,9 @@ Public Sub ManualCheckForUpdates()
     MsgBox "MANUAL UPDATE CHECK" & vbCrLf & vbCrLf & _
            "PRIVACY & SECURITY:" & vbCrLf & _
            String(30, "-") & vbCrLf & _
-           "• Only your version number will be sent" & vbCrLf & _
-           "• NO inventory data, photos, or personal info is transmitted" & vbCrLf & _
-           "• All your data stays safely on your computer" & vbCrLf & vbCrLf & _
+           "- Only your version number will be sent" & vbCrLf & _
+           "- NO inventory data, photos, or personal info is transmitted" & vbCrLf & _
+           "- All your data stays safely on your computer" & vbCrLf & vbCrLf & _
            "Click OK to check for available updates now.", _
            vbInformation + vbOKCancel, "Check for Updates"
     
@@ -1189,22 +1191,22 @@ Public Sub ShowUpdatePrivacyInfo()
     msg = "UPDATE CHECKING - PRIVACY & SECURITY INFORMATION" & vbCrLf & vbCrLf & _
           "WHAT IS TRANSMITTED:" & vbCrLf & _
           String(25, "-") & vbCrLf & _
-          "  • Only your current workbook version number" & vbCrLf & _
-          "  • Example: Version 1.1" & vbCrLf & vbCrLf & _
+          "  - Only your current workbook version number" & vbCrLf & _
+          "  - Example: Version 1.1" & vbCrLf & vbCrLf & _
           "WHAT IS NEVER TRANSMITTED:" & vbCrLf & _
           String(30, "-") & vbCrLf & _
-          "  • Inventory data (item names, prices, descriptions)" & vbCrLf & _
-          "  • Photos or image files" & vbCrLf & _
-          "  • Word documents or description files" & vbCrLf & _
-          "  • Your name, email, or any personal information" & vbCrLf & _
-          "  • Sales history or sold item data" & vbCrLf & _
-          "  • Folder paths or file locations" & vbCrLf & vbCrLf & _
+          "  - Inventory data (item names, prices, descriptions)" & vbCrLf & _
+          "  - Photos or image files" & vbCrLf & _
+          "  - Word documents or description files" & vbCrLf & _
+          "  - Your name, email, or any personal information" & vbCrLf & _
+          "  - Sales history or sold item data" & vbCrLf & _
+          "  - Folder paths or file locations" & vbCrLf & vbCrLf & _
           "YOUR DATA SECURITY:" & vbCrLf & _
           String(20, "-") & vbCrLf & _
-          "  • 100% of your data stays on YOUR computer" & vbCrLf & _
-          "  • We cannot access, view, or download your inventory" & vbCrLf & _
-          "  • Update checking only compares version numbers" & vbCrLf & _
-          "  • Downloading updates is optional and under your control"
+          "  - 100% of your data stays on YOUR computer" & vbCrLf & _
+          "  - We cannot access, view, or download your inventory" & vbCrLf & _
+          "  - Update checking only compares version numbers" & vbCrLf & _
+          "  - Downloading updates is optional and under your control"
     
     MsgBox msg, vbInformation, "Privacy & Security Information"
     
