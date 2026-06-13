@@ -304,6 +304,100 @@ Public Sub HideAllWorksheetsForTesting()
 End Sub
 
 ' ============================================
+' FULL RESET FOR FRESH TESTING
+' ============================================
+
+Public Sub Reset_1_Full_Reset()
+    ' Combines ResetFirstRunSettings + ResetWorkbookForFreshTesting
+    ' Clears ALL first-run flags AND all inventory/data for a completely clean slate
+    
+    Dim confirmResult As VbMsgBoxResult
+    
+    confirmResult = MsgBox("FULL RESET - This will clear EVERYTHING:" & vbCrLf & vbCrLf & _
+                          "FIRST-RUN SETTINGS:" & vbCrLf & _
+                          "  - EULA acceptance status" & vbCrLf & _
+                          "  - Update preference choice" & vbCrLf & _
+                          "  - First-run completion flag" & vbCrLf & vbCrLf & _
+                          "WORKBOOK DATA:" & vbCrLf & _
+                          "  - All inventory rows and item data" & vbCrLf & _
+                          "  - All sold items records" & vbCrLf & _
+                          "  - All item editor field data" & vbCrLf & vbCrLf & _
+                          "The workbook will behave as if opened for the very first time." & vbCrLf & vbCrLf & _
+                          "THIS CANNOT BE UNDONE. Continue?", _
+                          vbYesNo + vbCritical, "1 Full Reset - Confirm")
+    
+    If confirmResult <> vbYes Then
+        MsgBox "Reset cancelled. No changes were made.", vbInformation, "Cancelled"
+        Exit Sub
+    End If
+    
+    Application.ScreenUpdating = False
+    
+    On Error Resume Next
+    
+    ' ---- PART 1: Reset first-run settings ----
+    UpdateSetting "FIRST_RUN_COMPLETE", ""
+    UpdateSetting "AUTO_CHECK_UPDATES", ""
+    UpdateSetting "EULA_ACCEPTED", ""
+    UpdateSetting "EULA_ACCEPTED_DATE", ""
+    
+    ' ---- PART 2: Clear inventory worksheet ----
+    Dim wsInv As Worksheet
+    Set wsInv = ThisWorkbook.Worksheets("INVENTORY")
+    If Not wsInv Is Nothing Then
+        Dim lastInvRow As Long
+        lastInvRow = wsInv.Cells(wsInv.Rows.Count, 1).End(xlUp).Row
+        If lastInvRow > 1 Then
+            wsInv.Rows("2:" & lastInvRow).Delete
+        End If
+    End If
+    
+    ' ---- PART 3: Clear DATA sheet ----
+    Dim wsData As Worksheet
+    Set wsData = ThisWorkbook.Worksheets("DATA")
+    If Not wsData Is Nothing Then
+        Dim lastDataRow As Long
+        lastDataRow = wsData.Cells(wsData.Rows.Count, 1).End(xlUp).Row
+        If lastDataRow > 1 Then
+            wsData.Rows("2:" & lastDataRow).ClearContents
+        End If
+    End If
+    
+    ' ---- PART 4: Clear SOLD_ITEMS worksheet ----
+    Dim wsSold As Worksheet
+    Set wsSold = ThisWorkbook.Worksheets("SOLD_ITEMS")
+    If Not wsSold Is Nothing Then
+        Dim lastSoldRow As Long
+        lastSoldRow = wsSold.Cells(wsSold.Rows.Count, 1).End(xlUp).Row
+        If lastSoldRow > 1 Then
+            wsSold.Rows("2:" & lastSoldRow).Delete
+        End If
+    End If
+    
+    ' ---- PART 5: Clear SOLD_DATA sheet ----
+    Dim wsSoldData As Worksheet
+    Set wsSoldData = ThisWorkbook.Worksheets("SOLD_DATA")
+    If Not wsSoldData Is Nothing Then
+        Dim lastSoldDataRow As Long
+        lastSoldDataRow = wsSoldData.Cells(wsSoldData.Rows.Count, 1).End(xlUp).Row
+        If lastSoldDataRow > 1 Then
+            wsSoldData.Rows("2:" & lastSoldDataRow).ClearContents
+        End If
+    End If
+    
+    On Error GoTo 0
+    Application.ScreenUpdating = True
+    
+    MsgBox "Full Reset Complete!" & vbCrLf & vbCrLf & _
+           "All inventory data and first-run settings have been cleared." & vbCrLf & vbCrLf & _
+           "Close and reopen the workbook to experience the complete first-time setup flow:" & vbCrLf & _
+           "  - EULA display" & vbCrLf & _
+           "  - Update preference prompt" & vbCrLf & _
+           "  - Clean inventory ready for new items", vbInformation, "1 Full Reset Complete"
+
+End Sub
+
+' ============================================
 ' RESET FIRST-RUN SETTINGS (FOR TESTING)
 ' ============================================
 
