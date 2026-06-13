@@ -684,6 +684,16 @@ Public Sub CompleteUpdatePhase2()
 
     LogEntry logFile, "SUCCESS: Update completed at " & Now & " | Archived to: " & archiveSubfolder
 
+    ' Copy update log to workbook Logs folder for easy user access
+    On Error Resume Next
+    Dim logsFolder As String
+    logsFolder = oldFolder & "\Logs"
+    If Dir(logsFolder, vbDirectory) = "" Then MkDir logsFolder
+    Dim destLog As String
+    destLog = logsFolder & "\MercariUpdateLog_" & Format(Now, "YYYYMMDD_HHMMSS") & ".txt"
+    FileCopy logFile, destLog
+    On Error GoTo 0
+
     Dim archiveFolderName As String
     archiveFolderName = Mid(archiveSubfolder, InStrRev(archiveSubfolder, "\") + 1)
     
@@ -712,6 +722,16 @@ Phase2Error:
     Application.StatusBar = False
     Application.DisplayAlerts = True
     Application.EnableEvents = True
+
+    ' Copy update log to workbook Logs folder for easy user access
+    On Error Resume Next
+    Dim logsFolderErr As String
+    logsFolderErr = oldFolder & "\Logs"
+    If Dir(logsFolderErr, vbDirectory) = "" Then MkDir logsFolderErr
+    Dim destLogErr As String
+    destLogErr = logsFolderErr & "\MercariUpdateLog_" & Format(Now, "YYYYMMDD_HHMMSS") & ".txt"
+    FileCopy logFile, destLogErr
+    On Error GoTo 0
 
     ' Attempt rollback from pre-update backup
     RollbackUpdate logFile, backupPath, sourceWorkbookPath
