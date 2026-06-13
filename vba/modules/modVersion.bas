@@ -52,14 +52,13 @@ Public Sub CheckForUpdatesOnOpen()
     latestVersion = Replace(Replace(Trim$(checkResult), vbCr, ""), vbLf, "")
     
     If IsNewerVersion(latestVersion, CURRENT_VERSION) Then
-        userChoice = MsgBox("A new version (" & latestVersion & ") is available!" & vbCrLf & vbCrLf & _
-                           "Current version: " & CURRENT_VERSION & vbCrLf & vbCrLf & _
-                           "Would you like to update now?" & vbCrLf & vbCrLf & _
-                           "When you click Yes, don't worry if it takes me up to a minute to respond." & vbCrLf & _
-                           "I'll be busy backing up all of your data." & vbCrLf & _
-                           "Then I'll download the update and transfer everything into the shiny new version." & vbCrLf & _
-                           "Finally, I'll double-check to make sure it's all perfect for you." & vbCrLf & vbCrLf & _
-                           "I've got it all taken care of!", vbYesNo + vbInformation, "Update Available")
+        userChoice = MsgBox("New workbook update is available from VIRGIL!" & vbCrLf & vbCrLf & _
+                           "Current Version: " & CURRENT_VERSION & "          New Version: " & latestVersion & vbCrLf & vbCrLf & vbCrLf & _
+                           "Would you like to update now?" & vbCrLf & vbCrLf & vbCrLf & _
+                           "NOTE: When you click Yes, don't worry if it takes me up to one minute to respond. " & _
+                           "I'll be busy backing up all of your data, downloading the update, transferring everything " & _
+                           "into the shiny new version, and double checking to make sure it's all perfect for you.", _
+                           vbYesNo + vbInformation, "Update Available")
         
         If userChoice = vbYes Then
             DownloadUpdate latestVersion
@@ -393,6 +392,7 @@ Public Sub TransferMyData()
     Print #p2, oldFolder              ' Line 3: old folder path
     Print #p2, oldFileName            ' Line 4: old file name
     Print #p2, backupPath             ' Line 5: pre-update backup path for rollback
+    Print #p2, CURRENT_VERSION        ' Line 6: new version number for filename
     Close #p2
 
     LogEntry logFile, "  Phase 2 file written. Scheduling deferred close+archive via OnTime..."
@@ -452,6 +452,7 @@ Public Sub CompleteUpdatePhase2()
     Dim archivePath As String
     Dim finalPath As String
     Dim backupPath As String
+    Dim latestVersion As String
     Dim fso As Object
     Dim f As Integer
     Dim wb As Workbook
@@ -478,6 +479,7 @@ Public Sub CompleteUpdatePhase2()
     Line Input #f, oldFolder
     Line Input #f, oldFileName
     If Not EOF(f) Then Line Input #f, backupPath
+    If Not EOF(f) Then Line Input #f, latestVersion
     Close #f
 
     LogEntry logFile, "  sourceWbName = " & sourceWbName
@@ -628,8 +630,20 @@ Public Sub CompleteUpdatePhase2()
         LogEntry logFile, "  WARNING: Old workbook could not be deleted: " & sourceWorkbookPath
     End If
 
-    ' --- STEP E: Save new workbook to original location ---
-    finalPath = oldFolder & "\" & oldFileName
+    ' --- STEP E: Save new workbook with version number in filename ---
+    Dim newFileName As String
+    Dim baseFileName As String
+    baseFileName = Left(oldFileName, InStrRev(oldFileName, ".") - 1)
+    ' Strip any existing version suffix (e.g. _v1.1) before appending new one
+    If InStr(LCase(baseFileName), "_v") > 0 Then
+        baseFileName = Left(baseFileName, InStrRev(LCase(baseFileName), "_v") - 1)
+    End If
+    If Len(Trim(latestVersion)) > 0 Then
+        newFileName = baseFileName & "_v" & Trim(latestVersion) & ".xlsm"
+    Else
+        newFileName = oldFileName
+    End If
+    finalPath = oldFolder & "\" & newFileName
     
     ' Capture the downloaded file path BEFORE SaveAs changes it
     Dim downloadedFilePath As String
@@ -670,13 +684,18 @@ Public Sub CompleteUpdatePhase2()
 
     LogEntry logFile, "SUCCESS: Update completed at " & Now & " | Archived to: " & archiveSubfolder
 
+    Dim archiveFolderName As String
+    archiveFolderName = Mid(archiveSubfolder, InStrRev(archiveSubfolder, "\") + 1)
+    
     MsgBox "Welcome to your newly updated workbook!" & vbCrLf & vbCrLf & _
            "All of your data has been transferred successfully and everything is right where you left it." & vbCrLf & vbCrLf & _
-           "Your previous version has been archived in:" & vbCrLf & _
-           archiveSubfolder & vbCrLf & vbCrLf & _
+           "Your previous version has been safely stored in your Archived folder" & vbCrLf & _
+           "in a subfolder named: " & archiveFolderName & vbCrLf & vbCrLf & _
            "The old workbook" & IIf(COPY_FOLDERS_TO_ARCHIVE, " and project folders", "") & _
-           " have been safely stored there in case you need them." & vbCrLf & vbCrLf & _
-           "If you happen to spot any issues, please email:" & vbCrLf & _
+           " are stored there in case you ever need to restore them." & vbCrLf & vbCrLf & _
+           "If you experience any issues with the updated version, refer to the" & vbCrLf & _
+           """Restoring a Previous Version"" section of the User Manual." & vbCrLf & vbCrLf & _
+           "If you need further assistance, please email:" & vbCrLf & _
            "VIRGIL_Support@proton.me", vbInformation, "Update Complete!"
 
     Exit Sub
@@ -1194,14 +1213,13 @@ Public Sub ManualCheckForUpdates()
     latestVersion = Replace(Replace(Trim$(checkResult), vbCr, ""), vbLf, "")
     
     If IsNewerVersion(latestVersion, CURRENT_VERSION) Then
-        userChoice = MsgBox("A new version (" & latestVersion & ") is available!" & vbCrLf & vbCrLf & _
-                           "Current version: " & CURRENT_VERSION & vbCrLf & vbCrLf & _
-                           "Would you like to update now?" & vbCrLf & vbCrLf & _
-                           "When you click Yes, don't worry if it takes me up to a minute to respond." & vbCrLf & _
-                           "I'll be busy backing up all of your data." & vbCrLf & _
-                           "Then I'll download the update and transfer everything into the shiny new version." & vbCrLf & _
-                           "Finally, I'll double-check to make sure it's all perfect for you." & vbCrLf & vbCrLf & _
-                           "I've got it all taken care of!", vbYesNo + vbInformation, "Update Available")
+        userChoice = MsgBox("New workbook update is available from VIRGIL!" & vbCrLf & vbCrLf & _
+                           "Current Version: " & CURRENT_VERSION & "          New Version: " & latestVersion & vbCrLf & vbCrLf & vbCrLf & _
+                           "Would you like to update now?" & vbCrLf & vbCrLf & vbCrLf & _
+                           "NOTE: When you click Yes, don't worry if it takes me up to one minute to respond. " & _
+                           "I'll be busy backing up all of your data, downloading the update, transferring everything " & _
+                           "into the shiny new version, and double checking to make sure it's all perfect for you.", _
+                           vbYesNo + vbInformation, "Update Available")
         If userChoice = vbYes Then
             DownloadUpdate latestVersion
         End If
