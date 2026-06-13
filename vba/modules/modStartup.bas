@@ -51,6 +51,18 @@ Public Sub InitializeWorkbook()
     Call CreateMercariSignupButton
     On Error GoTo 0
     
+    ' Display current version number on Welcome worksheet cell I5
+    On Error Resume Next
+    With ThisWorkbook.Worksheets(WS_WELCOME).Range("I5")
+        .Value = "Version " & CURRENT_VERSION
+        .Font.Name = "Atkinson Hyperlegible"
+        .Font.Size = 12
+        .Font.Color = RGB(238, 240, 253)
+        .HorizontalAlignment = xlHAlignCenter
+        .VerticalAlignment = xlVAlignCenter
+    End With
+    On Error GoTo 0
+    
     ApplyColumnFormatting
 
     ' =====================================================
