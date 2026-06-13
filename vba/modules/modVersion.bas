@@ -1132,9 +1132,8 @@ Public Sub PromptForAutoUpdatePreference()
     Else
         UpdateSetting "AUTO_CHECK_UPDATES", "NO"
         MsgBox "Automatic update checking is now DISABLED." & vbCrLf & vbCrLf & _
-               "Go to the HELP worksheet to:" & vbCrLf & _
-               "  - Check for updates manually anytime" & vbCrLf & _
-               "  - Re-enable automatic update checking whenever you want", vbInformation, "Settings Saved"
+               "You can manually check for updates or re-enable automatic update checking" & vbCrLf & _
+               "at any time by clicking the applicable button in the HELP worksheet.", vbInformation, "Settings Saved"
     End If
     
 End Sub
@@ -1165,17 +1164,54 @@ End Sub
 ' ============================================
 
 Public Sub ManualCheckForUpdates()
-    ' Manual check with privacy notice
-    MsgBox "MANUAL UPDATE CHECK" & vbCrLf & vbCrLf & _
-           "PRIVACY & SECURITY:" & vbCrLf & _
-           String(30, "-") & vbCrLf & _
-           "- Only your version number will be sent" & vbCrLf & _
-           "- NO inventory data, photos, or personal info is transmitted" & vbCrLf & _
-           "- All your data stays safely on your computer" & vbCrLf & vbCrLf & _
-           "Click OK to check for available updates now.", _
-           vbInformation + vbOKCancel, "Check for Updates"
+    ' Show privacy notice first - respect Cancel
+    Dim privResult As VbMsgBoxResult
+    privResult = MsgBox("MANUAL UPDATE CHECK" & vbCrLf & vbCrLf & _
+                        "PRIVACY & SECURITY:" & vbCrLf & _
+                        String(30, "-") & vbCrLf & _
+                        "- Only your version number will be sent" & vbCrLf & _
+                        "- NO inventory data, photos, or personal info is transmitted" & vbCrLf & _
+                        "- All your data stays safely on your computer" & vbCrLf & vbCrLf & _
+                        "Click OK to check for available updates now.", _
+                        vbInformation + vbOKCancel, "Check for Updates")
     
-    CheckForUpdatesOnOpen
+    If privResult <> vbOK Then Exit Sub
+    
+    ' Perform the check and show result either way
+    Dim checkResult As String
+    Dim latestVersion As String
+    Dim userChoice As VbMsgBoxResult
+    
+    checkResult = GetLatestVersionInfo()
+    
+    If checkResult = "" Then
+        MsgBox "Could not connect to the update server." & vbCrLf & vbCrLf & _
+               "Please check your internet connection and try again.", _
+               vbExclamation, "Update Check Failed"
+        Exit Sub
+    End If
+    
+    latestVersion = Replace(Replace(Trim$(checkResult), vbCr, ""), vbLf, "")
+    
+    If IsNewerVersion(latestVersion, CURRENT_VERSION) Then
+        userChoice = MsgBox("A new version (" & latestVersion & ") is available!" & vbCrLf & vbCrLf & _
+                           "Current version: " & CURRENT_VERSION & vbCrLf & vbCrLf & _
+                           "Would you like to update now?" & vbCrLf & vbCrLf & _
+                           "When you click Yes, don't worry if it takes me up to a minute to respond." & vbCrLf & _
+                           "I'll be busy backing up all of your data." & vbCrLf & _
+                           "Then I'll download the update and transfer everything into the shiny new version." & vbCrLf & _
+                           "Finally, I'll double-check to make sure it's all perfect for you." & vbCrLf & vbCrLf & _
+                           "I've got it all taken care of!", vbYesNo + vbInformation, "Update Available")
+        If userChoice = vbYes Then
+            DownloadUpdate latestVersion
+        End If
+    Else
+        MsgBox "You are on the most current version of the VIRGIL Workbook!" & vbCrLf & vbCrLf & _
+               "Current version: " & CURRENT_VERSION & vbCrLf & vbCrLf & _
+               "No update is needed at this time. Check back anytime using the" & vbCrLf & _
+               "'Check for Updates Now' button on the HELP worksheet.", _
+               vbInformation, "You're Up to Date!"
+    End If
 End Sub
 
 ' ============================================
