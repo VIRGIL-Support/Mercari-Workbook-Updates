@@ -7,32 +7,47 @@ Public Function DisplayEULA() As Boolean
     ' Returns True if user accepts, False if declined
     
     Dim eulaPath As String
-    Dim userResponse As VbMsgBoxResult
-    
-    ' Build path to full EULA text file
     eulaPath = ThisWorkbook.Path & "\EULA_Full.txt"
     
-    ' Open EULA file automatically (like clicking a link)
-    On Error Resume Next
-    If Dir(eulaPath) <> "" Then
-        Shell "notepad.exe """ & eulaPath & """", vbNormalFocus
+    ' Step 1: Offer to open the EULA text file
+    Dim viewResult As VbMsgBoxResult
+    viewResult = MsgBox("VIRGIL Mercari Workbook - End User License Agreement (EULA)" & vbCrLf & vbCrLf & _
+                        "Click YES to open and read the full EULA." & vbCrLf & vbCrLf & _
+                        "Click NO to skip reading and proceed to acceptance.", _
+                        vbYesNo + vbQuestion, "View End User License Agreement (EULA)?")
+    
+    If viewResult = vbYes Then
+        On Error Resume Next
+        If Dir(eulaPath) <> "" Then
+            Shell "notepad.exe """ & eulaPath & """", vbNormalFocus
+        Else
+            MsgBox "EULA file not found. Please contact support at VIRGIL_Support@proton.me", _
+                   vbExclamation, "File Not Found"
+        End If
+        On Error GoTo 0
+        
+        ' Small pause so Notepad opens before the next popup
+        Application.Wait Now + TimeValue("00:00:02")
     End If
-    On Error GoTo 0
     
-    ' Show popup asking for acceptance (EULA is already open in Notepad)
-    userResponse = MsgBox("The End User License Agreement (EULA) has been opened in Notepad." & vbCrLf & vbCrLf & _
-                          "After reading the EULA, please confirm:" & vbCrLf & vbCrLf & _
-                          "Do you accept all terms of the End User License Agreement?" & vbCrLf & vbCrLf & _
+    ' Step 2: Ask for acceptance
+    Dim acceptResult As VbMsgBoxResult
+    acceptResult = MsgBox("Do you accept all terms of the End User License Agreement (EULA)?" & vbCrLf & vbCrLf & _
                           "Key terms:" & vbCrLf & _
-                          "- Single user license (no sharing)" & vbCrLf & _
-                          "- No redistribution or reverse engineering" & vbCrLf & _
-                          "- Software provided AS IS with no warranty" & vbCrLf & _
-                          "- Support via VIRGIL_Support@proton.me" & vbCrLf & vbCrLf & _
+                          "  - Single user license (no sharing)" & vbCrLf & _
+                          "  - No redistribution or reverse engineering" & vbCrLf & _
+                          "  - Software provided AS IS with no warranty" & vbCrLf & _
+                          "  - Support via VIRGIL_Support@proton.me" & vbCrLf & vbCrLf & _
+                          "You can review the End User License Agreement (EULA) at any time" & vbCrLf & _
+                          "from the HELP worksheet." & vbCrLf & vbCrLf & _
                           "Click YES to accept and continue." & vbCrLf & _
-                          "Click NO to decline and close.", _
-                          vbYesNo + vbQuestion + vbDefaultButton1, "Accept EULA")
+                          "Click NO to decline and close the workbook.", _
+                          vbYesNo + vbQuestion + vbDefaultButton1, "End User License Agreement (EULA)")
     
-    If userResponse = vbYes Then
+    If acceptResult = vbYes Then
+        MsgBox "Thank you for accepting the End User License Agreement (EULA)!" & vbCrLf & vbCrLf & _
+               "You can review it at any time from the HELP worksheet.", _
+               vbInformation, "EULA Accepted"
         DisplayEULA = True
     Else
         DisplayEULA = False
